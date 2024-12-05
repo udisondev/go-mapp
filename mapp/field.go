@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-
-
 // TypeFamily ENUM(basic, named, struct, pointer, slice)
 type TypeFamily uint8
 
@@ -37,6 +35,16 @@ type Field struct {
 	fieldPath string
 }
 
+func New(spec *types.Var,
+	owner *types.Struct,
+	fieldPath string) Field {
+	return Field{
+		spec:      spec,
+		owner:     owner,
+		fieldPath: fieldPath,
+	}
+}
+
 func (f Field) Name() string {
 	return f.spec.Origin().Name()
 }
@@ -58,7 +66,7 @@ func (f Field) Fields() []Field {
 		typePath := ft.Obj().Pkg().Path()
 		splitedType := strings.Split(f.spec.Origin().Type().String(), ".")
 		name := splitedType[len(splitedType)-1]
-		return extractFieldsFromStruct(f.FullName() + ".", typePath, name)
+		return extractFieldsFromStruct(f.FullName()+".", typePath, name)
 	case *types.Pointer:
 		switch pt := ft.Elem().(type) {
 		case *types.Named:
@@ -66,9 +74,9 @@ func (f Field) Fields() []Field {
 			if !isStruct {
 				return nil
 			}
-	
+
 			typePath := pt.Obj().Pkg().Path()
-			return extractFieldsFromStruct(f.FullName() + ".", typePath, pt.Obj().Name())
+			return extractFieldsFromStruct(f.FullName()+".", typePath, pt.Obj().Name())
 		case *types.Struct:
 			extractFieldsFromStruct(f.FullName(), f.spec.Pkg().Path(), f.spec.Type().String())
 		}
@@ -76,7 +84,6 @@ func (f Field) Fields() []Field {
 
 	return nil
 }
-
 
 func (f Field) Type() TypedField {
 	return f.resolveType(f.spec.Type())

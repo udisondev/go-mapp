@@ -8,4 +8,5 @@ require (
 	github.com/dave/jennifer v1.7.1
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/sync v0.9.0 // indirect
+	golang.org/x/text v0.18.0
 )

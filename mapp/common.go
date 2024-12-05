@@ -46,11 +46,11 @@ func extractFieldsFromStruct(filedPath, typePath, typeName string) []Field {
 
 	fields := make([]Field, 0, str.NumFields())
 	for i := 0; i < str.NumFields(); i++ {
-		fields = append(fields, Field{
-			spec:      str.Field(i),
-			owner:     str,
-			fieldPath: filedPath,
-		})
+		fields = append(fields, New(
+			str.Field(i),
+			str,
+			filedPath,
+		))
 	}
 
 	return fields

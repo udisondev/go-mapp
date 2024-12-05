@@ -5,7 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 
-	// "github.com/udisondev/go-mapp/gen"
+	"github.com/udisondev/go-mapp/gen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
@@ -18,8 +18,8 @@ func main() {
 	// rule.RegisterRuleParser("enum", parseEnumRule)
 
 	mapperFile := parse("./mapper_def.go")
-	// gen.Generate(mapperFile)
-	checkEmapper(mapperFile)
+	gen.Generate(mapperFile)
+	// checkEmapper(mapperFile)
 	// check(mapperFile)
 }
 
@@ -49,7 +49,8 @@ func checkEmapper(mapperFile mapp.File) {
 			fmt.Printf("comment.Value(): %v\n", c.Value())
 		}
 
-		sourceT, targetT := em.Source().Type(), em.Target().Type()
+		sourceT, _ := em.Source().Type()
+		targetT, _ := em.Target().Type()
 		for s, t := range em.EnumsMap() {
 			fmt.Printf("Found mapping from '%s.%s' to '%s.%s'\n", sourceT, s, targetT, t)
 		}

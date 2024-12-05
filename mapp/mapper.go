@@ -38,7 +38,7 @@ func (m Mapper) Rules() []Rule {
 		if !mapperRuleReg.MatchString(val) {
 			panic(fmt.Sprintf("unsupported rule: %s", val))
 		}
-		
+
 		buildRuleArg := func(arg string) (RuleArg, string) {
 			kvPair := strings.Split(arg, "=")
 			if len(kvPair) != 2 {

@@ -1,36 +1,26 @@
 package mapp
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
 
-type SourceEnum struct {
-	t Param
+type Enum struct {
+	spec    *ast.Field
+	imports []Import
 }
 
-type TargetEnum struct {
-	t Result
-}
-
-func (se SourceEnum) Values() []string {
-	_, typeName := se.t.Type()
-	return enumValues(se.Path(), typeName)
-}
-
-func (te TargetEnum) Values() []string {
-	_, typeName := te.t.Type()
-	return enumValues(te.Path(), typeName)
-}
-
-func enumValues(path, typeName string) []string {
+func (e Enum) Values() []string {
+	_, typeName := e.Type()
 	cfg := &packages.Config{
 		Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
 		Fset: token.NewFileSet(),
 	}
-	pkgs, err := packages.Load(cfg, path)
+	pkgs, err := packages.Load(cfg, e.Path())
 	if err != nil {
 		panic(err)
 	}
@@ -69,20 +59,37 @@ func enumValues(path, typeName string) []string {
 	return vals
 }
 
-func (se SourceEnum) Path() string {
-	return se.t.Path()
+func (e Enum) Type() (string, string) {
+	switch tt := e.spec.Type.(type) {
+	case *ast.Ident:
+		return "", tt.Name
+	case *ast.SelectorExpr:
+		return tt.X.(*ast.Ident).Name, tt.Sel.Name
+
+	default:
+		panic(fmt.Sprintf("could not extract type from: %T", tt))
+	}
 }
 
-func (te TargetEnum) Path() string {
-	return te.t.Path()
+func (e Enum) Path() string {
+	alias, _ := e.Type()
+	if alias == "" {
+		return ""
+	}
+
+	for _, i := range e.imports {
+		if i.Alias() == alias {
+			return strings.ReplaceAll(i.Path(), "\"", "")
+		}
+	}
+
+	return ""
 }
 
-func (se SourceEnum) Type() string {
-	_, t := se.t.Type()
-	return t
-}
+func (p Enum) Name() string {
+	if len(p.spec.Names) == 0 {
+		return ""
+	}
 
-func (te TargetEnum) Type() string {
-	_, t := te.t.Type()
-	return t
+	return p.spec.Names[0].Name
 }

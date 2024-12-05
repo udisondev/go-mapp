@@ -33,3 +33,8 @@ func fieldsHash(fs ...mapp.Field) string {
 func fieldHash(f mapp.Field) string {
 	return f.Type().Path() + "." + f.Type().TypeName()
 }
+
+func enumHash(f mapp.Enum) string {
+	_, typeName := f.Type()
+	return f.Path() + "." + typeName
+}

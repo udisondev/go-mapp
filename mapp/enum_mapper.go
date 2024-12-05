@@ -21,6 +21,15 @@ func (em EnumMapper) Name() string {
 	return em.spec.Names[0].Name
 }
 
+func (em EnumMapper) withError() bool {
+	if len(em.Results()) < 2 {
+		return false
+	}
+
+	_, typeName := em.Results()[1].Type()
+	return typeName == "error"
+}
+
 func (em EnumMapper) Comments() []Comment {
 	comments := make([]Comment, 0, len(em.spec.Doc.List))
 	for _, v := range em.spec.Doc.List {
@@ -196,14 +205,45 @@ func (em EnumMapper) Results() []Result {
 	return params
 }
 
-func (em EnumMapper) Source() SourceEnum {
-	return SourceEnum{
-		t: em.Params()[0],
+func (em EnumMapper) Source() Enum {
+	return Enum{
+		spec:    em.Params()[0].spec,
+		imports: em.imports,
 	}
 }
 
-func (em EnumMapper) Target() TargetEnum {
-	return TargetEnum{
-		t: em.Results()[0],
+func (em EnumMapper) Target() Enum {
+	return Enum{
+		spec:    em.Results()[0].spec,
+		imports: em.imports,
 	}
+}
+
+func (em EnumMapper) Errormsg() (string, bool) {
+	if !em.withError() {
+		return "", false
+	}
+
+	for _, c := range em.Comments() {
+		if !strings.HasPrefix(c.Value(), "@err") {
+			continue
+		}
+
+		defConf := strings.Split(c.Value(), " ")
+		return defConf[1], true
+	}
+
+	return "unknown source enum: %v", true
+}
+
+func (em EnumMapper) Default() (string, bool) {
+	for _, c := range em.Comments() {
+		if !strings.HasPrefix(c.Value(), "@def") {
+			continue
+		}
+
+		defConf := strings.Split(c.Value(), " ")
+		return defConf[1], true
+	}
+	return "", false
 }
