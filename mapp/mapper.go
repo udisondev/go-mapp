@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var ruleReg = regexp.MustCompile(`^@(qual|enum|ignore) `)
+var mapperRuleReg = regexp.MustCompile(`^@(qual|enum|ignore) `)
 
 type Mapper struct {
 	spec    *ast.Field
@@ -35,40 +35,41 @@ func (m Mapper) Rules() []Rule {
 			continue
 		}
 
-		if ruleReg.MatchString(val) {
-			buildRuleArg := func(arg string) (RuleArg, string) {
-				kvPair := strings.Split(arg, "=")
-				if len(kvPair) != 2 {
-					panic(fmt.Sprintf("invalid argument format: %s", arg))
-				}
-
-				switch kvPair[0] {
-				case "-s":
-					return RuleArgSource, kvPair[1]
-				case "-t":
-					return RuleArgTarget, kvPair[1]
-				case "-mn":
-					return RuleArgMname, kvPair[1]
-				case "-mp":
-					return RuleArgMpath, kvPair[1]
-				default:
-					panic(fmt.Sprintf("unknown arg key: %s", kvPair[0]))
-				}
-			}
-
-			args := strings.Split(val, " ")
-			ruleArgs := make(map[RuleArg]string, len(args)-1)
-			for _, a := range args[1:] {
-				k, v := buildRuleArg(a)
-				ruleArgs[k] = v
-			}
-			rules = append(rules, Rule{
-				spec: val,
-				args: ruleArgs,
-			})
-		} else {
+		if !mapperRuleReg.MatchString(val) {
 			panic(fmt.Sprintf("unsupported rule: %s", val))
 		}
+		
+		buildRuleArg := func(arg string) (RuleArg, string) {
+			kvPair := strings.Split(arg, "=")
+			if len(kvPair) != 2 {
+				panic(fmt.Sprintf("invalid argument format: %s", arg))
+			}
+
+			switch kvPair[0] {
+			case "-s":
+				return RuleArgSource, kvPair[1]
+			case "-t":
+				return RuleArgTarget, kvPair[1]
+			case "-mn":
+				return RuleArgMname, kvPair[1]
+			case "-mp":
+				return RuleArgMpath, kvPair[1]
+			default:
+				panic(fmt.Sprintf("unknown arg key: %s", kvPair[0]))
+			}
+		}
+
+		args := strings.Split(val, " ")
+		ruleArgs := make(map[RuleArg]string, len(args)-1)
+		for _, a := range args[1:] {
+			k, v := buildRuleArg(a)
+			ruleArgs[k] = v
+		}
+		rules = append(rules, Rule{
+			spec: val,
+			args: ruleArgs,
+		})
+
 	}
 
 	return rules
@@ -153,7 +154,7 @@ func (m Mapper) SourceFieldByTarget(targetFullName string) (Field, bool) {
 	return source.FieldByFullName(sourceFullName)
 }
 
-func (m Mapper) RulesByFieldFullName(fullName string) []Rule {
+func (m Mapper) FieldRules(fieldFullName string) []Rule {
 	rules := make([]Rule, 0)
 	for _, r := range m.Rules() {
 		_, isTargetFieldRule := r.Arg(RuleArgTarget)
@@ -168,7 +169,7 @@ func (m Mapper) RulesByFieldFullName(fullName string) []Rule {
 	return rules
 }
 
-func (m Mapper) RulesByFieldFullNameAndType(fullName string, ruleType RuleType) (Rule, bool) {
+func (m Mapper) RulesBy(fieldFullName string, ruleType RuleType) (Rule, bool) {
 	for _, r := range m.Rules() {
 		if r.Type() != ruleType {
 			continue
@@ -180,7 +181,7 @@ func (m Mapper) RulesByFieldFullNameAndType(fullName string, ruleType RuleType) 
 			continue
 		}
 
-		if tflname != fullName && sflname != fullName {
+		if tflname != fieldFullName && sflname != fieldFullName {
 			continue
 		}
 

@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 
-	"github.com/udisondev/go-mapp/gen"
+	// "github.com/udisondev/go-mapp/gen"
 	"github.com/udisondev/go-mapp/mapp"
-	"github.com/udisondev/go-mapp/parse"
 )
 
 const ProjectName = "github.com/udisondev/go-mapp"
@@ -16,12 +17,56 @@ func main() {
 	// rule.RegisterRuleParser("qual", parseQualRule)
 	// rule.RegisterRuleParser("enum", parseEnumRule)
 
-	mapperFile := parse.File("./mapper/mapper.go")
-	gen.Generate(mapperFile)
+	mapperFile := parse("./mapper/mapper.go")
+	// gen.Generate(mapperFile)
+	checkEmapper(mapperFile)
 	// check(mapperFile)
 }
 
-func check(mapperFile mapp.MapperFile) {
+func parse(filePath string) mapp.File {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse file: %v", err))
+	}
+
+	return mapp.NewMapperFile(node)
+}
+
+func checkEmapper(mapperFile mapp.File) {
+	ems := mapperFile.EnumsMappers()
+	for _, em := range ems {
+		fmt.Printf("mapper.Name(): %v\n", em.Name())
+		params := em.Params()
+		for _, p := range params {
+			fmt.Printf("param.Name(): %v\n", p.Name())
+			pack, t := p.Type()
+			fmt.Println("param.Type():", pack, t)
+			fmt.Printf("param.Path(): %v\n", p.Path())
+		}
+		comments := em.Comments()
+		for _, c := range comments {
+			fmt.Printf("comment.Value(): %v\n", c.Value())
+		}
+
+		for _, p := range em.EnumPairs() {
+			fmt.Println("Enum source")
+			fmt.Printf("Path: %s FullName: %s.%s\n", p.Source().Path(),  p.Source().Type(), p.Source().Name())
+
+			fmt.Println("Enum target")
+			fmt.Printf("Path: %s FullName: %s.%s\n", p.Target().Path(), p.Target().Type(), p.Target().Name())
+		}
+
+		for _, r := range em.Results() {
+			fmt.Printf("rule.Name(): %v\n", r.Name())
+			pack, t := r.Type()
+			fmt.Println("rule.Type():", pack, t)
+			fmt.Printf("rule.Path(): %v\n", r.Path())
+		}
+	}
+}
+
+func check(mapperFile mapp.File) {
 	imports := mapperFile.Imports()
 	for _, i := range imports {
 		fmt.Println("Import", "Alias:", i.Alias(), "Path:", i.Path())

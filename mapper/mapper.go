@@ -22,7 +22,7 @@ type Mapper interface {
 	MapPersonToDTO(p domain.Person) d.Person
 
 	//@emapper
-	//@enum Simple=Simple Important=Important
+	//@enum Simple=Simple Important=Important Vip=Fun Fun=Fun
 	MapPersonTypeToDto(pt domain.PersonType) d.PersonType
 
 	//@qual -s=FirstName -t=.Firstname

@@ -15,10 +15,10 @@ type Person struct {
 }
 
 type PersonType int
-
 const (
 	Simple PersonType = iota + 1
 	Important
+	Fun
 )
 
 type Profile struct {

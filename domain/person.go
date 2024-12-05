@@ -23,6 +23,8 @@ type PersonType uint8
 const (
 	Simple PersonType = iota + 1
 	Important
+	Vip
+	Fun
 )
 
 type Profile struct {
