@@ -97,11 +97,21 @@ func (em EnumMapper) EnumsMap() map[string]string {
 		}
 	}
 
+	checkUnmapedEnms := func(m map[string]bool) []string {
+		arr := make([]string, 0)
+		for enm, mapped := range m {
+			if mapped {
+				continue
+			}
+			arr = append(arr, enm)
+		}
+		return arr
+	}
+
 	unmapped := checkUnmapedEnms(sourceValMap)
 	if len(unmapped) > 0 {
 		log.Fatalf("%s has unmapped source enums: %v", em.Name(), unmapped)
 	}
-
 
 	unmapped = checkUnmapedEnms(targetValMap)
 	if len(unmapped) > 0 {
@@ -109,17 +119,6 @@ func (em EnumMapper) EnumsMap() map[string]string {
 	}
 
 	return mapping
-}
-
-func checkUnmapedEnms(m map[string]bool) []string {
-	arr := make([]string, 0)
-	for enm, mapped := range m {
-		if mapped {
-			continue
-		}
-		arr = append(arr, enm)
-	}
-	return arr
 }
 
 func (em EnumMapper) mapQual() map[string]string {
