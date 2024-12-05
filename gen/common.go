@@ -4,7 +4,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/udisondev/go-mapping-jam/mapp"
+	"github.com/udisondev/go-mapp/mapp"
 )
 
 func genRandomName(length int) string {

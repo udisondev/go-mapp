@@ -3,8 +3,8 @@ package mapper
 import (
 	"strings"
 
-	"github.com/udisondev/go-mapping-jam/domain"
-	d "github.com/udisondev/go-mapping-jam/dto"
+	"github.com/udisondev/go-mapp/domain"
+	d "github.com/udisondev/go-mapp/dto"
 )
 
 // TODO добавить обработку slice

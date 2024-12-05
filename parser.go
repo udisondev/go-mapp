@@ -9,15 +9,14 @@ package main
 // 	"regexp"
 // 	"strings"
 
-// 	. "github.com/udisondev/go-mapping-jam/mapp"
-// 	"github.com/udisondev/go-mapping-jam/rule"
+// 	. "github.com/udisondev/go-mapp/mapp"
+// 	"github.com/udisondev/go-mapp/rule"
 // 	"golang.org/x/tools/go/packages"
 // )
 
 // var pkgs = make(map[string]*packages.Package)
 
 // func parse(filePath string) map[string]Mapper {
-	
 
 // 	mapperImports := make([]struct{ alias, path string }, 0, len(node.Imports))
 // 	for _, v := range node.Imports {
@@ -72,7 +71,6 @@ package main
 
 // 	return mappersMap
 // }
-
 
 // func parseRules(input string) []rule.Any {
 // 	var rules []rule.Any
@@ -148,8 +146,6 @@ package main
 // func parseEnumRule(data string) rule.Any {
 // 	return rule.Enum{}
 // }
-
-
 
 // func extractMappingRoot(v *ast.FieldList, imports []struct{ alias, path string }) Struct {
 // 	pathByName := func(n string) string {

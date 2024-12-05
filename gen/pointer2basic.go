@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/udisondev/go-mapping-jam/mapp"
+	"github.com/udisondev/go-mapp/mapp"
 )
 
 func pointerToBasic(bl mapperBlock, s, t mapp.Field) {

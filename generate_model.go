@@ -2,8 +2,8 @@ package main
 
 // import (
 // 	jen "github.com/dave/jennifer/jen"
-// 	. "github.com/udisondev/go-mapping-jam/mapp"
-// 	"github.com/udisondev/go-mapping-jam/rule"
+// 	. "github.com/udisondev/go-mapp/mapp"
+// 	"github.com/udisondev/go-mapp/rule"
 // )
 
 // type generatedMapper struct {

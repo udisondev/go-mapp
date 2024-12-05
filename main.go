@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/udisondev/go-mapping-jam/gen"
-	"github.com/udisondev/go-mapping-jam/mapp"
-	"github.com/udisondev/go-mapping-jam/parse"
+	"github.com/udisondev/go-mapp/gen"
+	"github.com/udisondev/go-mapp/mapp"
+	"github.com/udisondev/go-mapp/parse"
 )
 
-const ProjectName = "github.com/udisondev/go-mapping-jam"
+const ProjectName = "github.com/udisondev/go-mapp"
 
 var CurrentPath = ProjectName + "/mapping"
 

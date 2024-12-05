@@ -1,6 +1,6 @@
 package external
 
-import u "github.com/udisondev/go-mapping-jam/user"
+import u "github.com/udisondev/go-mapp/user"
 
 type Account struct {
 	Login    u.Login

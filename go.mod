@@ -1,4 +1,4 @@
-module github.com/udisondev/go-mapping-jam
+module github.com/udisondev/go-mapp
 
 go 1.23.2
 

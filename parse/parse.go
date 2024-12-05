@@ -5,7 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 
-	"github.com/udisondev/go-mapping-jam/mapp"
+	"github.com/udisondev/go-mapp/mapp"
 )
 
 func File(filePath string) mapp.MapperFile {

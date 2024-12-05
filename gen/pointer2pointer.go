@@ -1,7 +1,7 @@
 package gen
 
 import (
-	"github.com/udisondev/go-mapping-jam/mapp"
+	"github.com/udisondev/go-mapp/mapp"
 )
 
 func pointerToPointer(bl mapperBlock, s, t mapp.Field) {

@@ -2,7 +2,7 @@ package gen
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/udisondev/go-mapping-jam/mapp"
+	"github.com/udisondev/go-mapp/mapp"
 )
 
 func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
@@ -18,7 +18,7 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
 	}
 
 	switch {
-		case sslice.Elem().TypeFamily() == mapp.FieldTypeBasic &&
+	case sslice.Elem().TypeFamily() == mapp.FieldTypeBasic &&
 		tslice.Elem().TypeFamily() == mapp.FieldTypeBasic:
 		basicToBasic(bl, s, t)
 	case sslice.Elem().TypeFamily() == mapp.FieldTypeStruct &&
@@ -29,7 +29,7 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
 			submapperName = genRandomName(10)
 			bl.submappers[hash] = submapperName
 		}
-	
+
 		targetSliceName := "target" + t.Name() + "Slice"
 		targetTypePath := t.Type().Path()
 		bl.Id(targetSliceName).
@@ -45,9 +45,9 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
 			Block(
 				jen.Id(targetSliceName).Op("=").Append(jen.Id(targetSliceName), jen.Id(submapperName).Call(jen.Id("it"))),
 			)
-	
+
 		bl.Id("target").Dot(t.Name()).Op("=").Id(targetSliceName)
-	
+
 		if !submapperExists {
 			mfn := mapperFunc{
 				generatedFn:        bl.file.Func().Id(submapperName),
@@ -64,5 +64,4 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
 		}
 	}
 
-	
 }

@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/udisondev/go-mapping-jam/external"
+import "github.com/udisondev/go-mapp/external"
 
 type Person struct {
 	FirstName   string

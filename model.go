@@ -7,7 +7,7 @@ package main
 // 	"log"
 // 	"strings"
 
-// 	"github.com/udisondev/go-mapping-jam/rule"
+// 	"github.com/udisondev/go-mapp/rule"
 // 	"golang.org/x/tools/go/packages"
 // )
 
@@ -303,5 +303,5 @@ package main
 // }
 
 // func dirByPath(p string) string {
-// 	return strings.ReplaceAll(p, "github.com/udisondev/go-mapping-jam", "./")
+// 	return strings.ReplaceAll(p, "github.com/udisondev/go-mapp", "./")
 // }

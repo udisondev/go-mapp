@@ -3,7 +3,7 @@ package cast
 // import (
 // 	"fmt"
 
-// 	. "github.com/udisondev/go-mapping-jam/mapp"
+// 	. "github.com/udisondev/go-mapp/mapp"
 // )
 
 // func ToStruct(v any) Struct {

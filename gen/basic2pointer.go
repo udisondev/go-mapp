@@ -4,9 +4,8 @@ import (
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/udisondev/go-mapping-jam/mapp"
+	"github.com/udisondev/go-mapp/mapp"
 )
-
 
 func basicToPointer(bl mapperBlock, s, t mapp.Field) {
 	pt, ok := t.Type().(mapp.PointerType)

@@ -2,7 +2,7 @@ package gen
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/udisondev/go-mapping-jam/mapp"
+	"github.com/udisondev/go-mapp/mapp"
 )
 
 func structToStruct(bl mapperBlock, s, t mapp.Field) {
