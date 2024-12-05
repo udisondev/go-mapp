@@ -8,12 +8,10 @@ import (
 )
 
 type SourceEnum struct {
-	name string
 	t Param
 }
 
 type TargetEnum struct {
-	name string
 	t Result
 }
 
