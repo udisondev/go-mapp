@@ -1,21 +1,21 @@
 package mapp
 
 import (
-	"fmt"
 	"go/ast"
-	"go/token"
-	"regexp"
+	"log"
+	"slices"
 	"strings"
-
-	"golang.org/x/tools/go/packages"
 )
-
-var emapperRuleReg = regexp.MustCompile(`^@(enum|ignore|eqname|ignorecase) `)
 
 type EnumMapper struct {
 	spec    *ast.Field
 	imports []Import
 }
+
+const (
+	source = "-s"
+	target = "-t"
+)
 
 func (em EnumMapper) Name() string {
 	return em.spec.Names[0].Name
@@ -30,133 +30,143 @@ func (em EnumMapper) Comments() []Comment {
 	return comments
 }
 
-func (em EnumMapper) EnumPairs() []EnumPair {
-	enumPairs := make([]EnumPair, 0)
-	for _, c := range em.Comments() {
-		val := c.Value()
-		if !strings.HasPrefix(val, "@") {
-			continue
-		}
-
-		if strings.HasPrefix(val, "@emapper") {
-			continue
-		}
-
-		if !emapperRuleReg.MatchString(val) {
-			panic(fmt.Sprintf("unsupported rule: %s", val))
-
-		}
-
-		args := strings.Split(val, " ")
-		source := em.Params()[0]
-		target := em.Results()[0]
-		sourcesEnums := make([]string, 0, len(args[1:]))
-		targetEnums := make([]string, 0, len(args[1:]))
-		for _, a := range args[1:] {
-			kv := strings.Split(a, "=")
-			sourcesEnums = append(sourcesEnums, kv[0])
-			targetEnums = append(targetEnums, kv[1])
-			enumPairs = append(enumPairs, EnumPair{
-				source: SourceEnum{
-					name: kv[0],
-					t:    source,
-				},
-				target: TargetEnum{
-					name: kv[1],
-					t:    target,
-				},
-			})
-		}
-
-		_, sourceType := source.Type()
-		_, targetType := target.Type()
-		notMapped, notExistingEnum := checkSource(source.Path(), sourceType, sourcesEnums)
-		if len(notExistingEnum) > 0 {
-			panic(fmt.Sprintf("%s declares not existing source enums: %v", em.Name(), notExistingEnum))
-		}
-		if len(notMapped) > 0 {
-			panic(fmt.Sprintf("%s found not mapped source enums: %v", em.Name(), notMapped))
-		}
-
-		notMapped, notExistingEnum = checkSource(target.Path(), targetType, targetEnums)
-		if len(notExistingEnum) > 0 {
-			panic(fmt.Sprintf("%s declares not existing target enums: %v", em.Name(), notExistingEnum))
-		}
-		if len(notMapped) > 0 {
-			panic(fmt.Sprintf("%s found not mapped target enums: %v", em.Name(), notMapped))
-		}
-
-	}
-
-	return enumPairs
-}
-
-func checkSource(path, typeName string, defMapping []string) ([]string, []string) {
-	cfg := &packages.Config{
-		Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
-		Fset: token.NewFileSet(),
-	}
-	pkgs, err := packages.Load(cfg, path)
-	if err != nil {
-		panic(err)
-	}
-	pkg := pkgs[0]
-
-	actualEnms := []string{}
-	for _, s := range pkg.Syntax {
-		ast.Inspect(s, func(n ast.Node) bool {
-			decl, ok := n.(*ast.GenDecl)
-			if !ok || decl.Tok != token.CONST {
-				return true
-			}
-
-			for _, spec := range decl.Specs {
-				valueSpec, ok := spec.(*ast.ValueSpec)
-				if !ok {
-					continue
-				}
-
-				if typeIdent, ok := valueSpec.Type.(*ast.Ident); ok {
-					if typeIdent.Name != typeName {
-						break
-					}
-				}
-
-				for _, n := range valueSpec.Names {
-					actualEnms = append(actualEnms, n.Name)
-				}
-
-			}
-
-			return false
-		})
-	}
-	sliceToMap := func(arr []string) map[string]struct{} {
-		m := make(map[string]struct{})
-		for _, s := range arr {
-			m[s] = struct{}{}
+func (em EnumMapper) EnumsMap() map[string]string {
+	mapping := make(map[string]string, 0)
+	sliceToMap := func(arr []string) map[string]bool {
+		m := make(map[string]bool, len(arr))
+		for _, v := range arr {
+			m[v] = false
 		}
 		return m
 	}
-	givenMap := sliceToMap(defMapping)
-	actualMap := sliceToMap(actualEnms)
 
-	notExistingEnum := make([]string, 0)
-	for k := range givenMap {
-		if _, ok := actualMap[k]; !ok {
-			notExistingEnum = append(notExistingEnum, k)
+	ignores := em.ignores()
+	checkIgnore := func(goal string, m map[string]bool) {
+		for k := range m {
+			if ignore, ok := ignores[goal]; ok && k == ignore {
+				m[k] = true
+			}
+		}
+	}
+	sourceValMap := sliceToMap(em.Source().Values())
+	targetValMap := sliceToMap(em.Target().Values())
+	checkIgnore(source, sourceValMap)
+	checkIgnore(target, targetValMap)
+
+	var ignoreCase bool
+	for _, c := range em.Comments() {
+		if strings.HasPrefix(c.Value(), "@ignorecase") {
+			ignoreCase = true
+			continue
 		}
 	}
 
-	notMapped := make([]string, 0)
-	for k := range actualMap {
-		if _, ok := givenMap[k]; !ok {
-			notMapped = append(notMapped, k)
+	mapRules := em.mapQual()
+	hasMapped := func(sv, tv string) {
+		sourceValMap[sv] = true
+		targetValMap[tv] = true
+		mapping[sv] = tv
+	}
+
+	for sourceEnm, mapped := range sourceValMap {
+		if mapped {
+			continue
+		}
+
+		targetEnm, hasQual := mapRules[sourceEnm]
+		if hasQual {
+			hasMapped(sourceEnm, targetEnm)
+			continue
+		}
+
+		_, samename := targetValMap[sourceEnm]
+		if samename {
+			hasMapped(sourceEnm, sourceEnm)
+			continue
+		}
+
+		if !ignoreCase {
+			continue
+		}
+
+		for k := range targetValMap {
+			if strings.EqualFold(sourceEnm, k) {
+				hasMapped(sourceEnm, k)
+				continue
+			}
 		}
 	}
 
-	return notMapped, notExistingEnum
+	unmapped := checkUnmapedEnms(sourceValMap)
+	if len(unmapped) > 0 {
+		log.Fatalf("%s has unmapped source enums: %v", em.Name(), unmapped)
+	}
 
+
+	unmapped = checkUnmapedEnms(targetValMap)
+	if len(unmapped) > 0 {
+		log.Fatalf("%s has unmapped target enums: %v", em.Name(), unmapped)
+	}
+
+	return mapping
+}
+
+func checkUnmapedEnms(m map[string]bool) []string {
+	arr := make([]string, 0)
+	for enm, mapped := range m {
+		if mapped {
+			continue
+		}
+		arr = append(arr, enm)
+	}
+	return arr
+}
+
+func (em EnumMapper) mapQual() map[string]string {
+	mapRule := map[string]string{}
+	for _, c := range em.Comments() {
+		val := c.Value()
+		if !strings.HasPrefix(val, "@enum") {
+			continue
+		}
+
+		args := strings.Split(val, " ")
+		for _, a := range args[1:] {
+			kv := strings.Split(a, "=")
+			if len(kv) != 2 {
+				log.Fatalf("wrong @enum config: %s", a)
+			}
+
+			mapRule[kv[0]] = kv[1]
+		}
+	}
+
+	return mapRule
+}
+
+func (em EnumMapper) ignores() map[string]string {
+	ignores := map[string]string{}
+	for _, c := range em.Comments() {
+		val := c.Value()
+		if !strings.HasPrefix(val, "@ignore") {
+			continue
+		}
+
+		args := strings.Split(val, " ")
+		for _, a := range args[1:] {
+			kv := strings.Split(a, "=")
+			if len(kv) != 2 {
+				log.Fatalf("wrong @ignore config: %s", a)
+			}
+			if !slices.Contains([]string{source, target}, kv[0]) {
+				log.Fatalf("wrong @ignore key '%s' please use '-s' ot '-t'.", kv[0])
+			}
+
+			ignores[kv[0]] = kv[1]
+		}
+	}
+
+	return ignores
 }
 
 func (em EnumMapper) Params() []Param {
@@ -187,16 +197,14 @@ func (em EnumMapper) Results() []Result {
 	return params
 }
 
-func (em EnumMapper) Source() Source {
-	return Source{
-		spec: em.Params()[0].spec,
-		p:    em.Params()[0],
+func (em EnumMapper) Source() SourceEnum {
+	return SourceEnum{
+		t: em.Params()[0],
 	}
 }
 
-func (em EnumMapper) Target() Target {
-	return Target{
-		spec: em.Results()[0].spec,
-		r:    em.Results()[0],
+func (em EnumMapper) Target() TargetEnum {
+	return TargetEnum{
+		t: em.Results()[0],
 	}
 }

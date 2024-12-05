@@ -19,6 +19,7 @@ const (
 	Simple PersonType = iota + 1
 	Important
 	Fun
+	Crazy
 )
 
 type Profile struct {

@@ -1,9 +1,11 @@
 package mapp
 
-type EnumPair struct {
-	source SourceEnum
-	target TargetEnum
-}
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/go/packages"
+)
 
 type SourceEnum struct {
 	name string
@@ -15,20 +17,58 @@ type TargetEnum struct {
 	t Result
 }
 
-func (ep EnumPair) Source() SourceEnum {
-	return ep.source
+func (se SourceEnum) Values() []string {
+	_, typeName := se.t.Type()
+	return enumValues(se.Path(), typeName)
 }
 
-func (ep EnumPair) Target() TargetEnum {
-	return ep.target
+func (te TargetEnum) Values() []string {
+	_, typeName := te.t.Type()
+	return enumValues(te.Path(), typeName)
 }
 
-func (se SourceEnum) Name() string {
-	return se.name
-}
+func enumValues(path, typeName string) []string {
+	cfg := &packages.Config{
+		Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
+		Fset: token.NewFileSet(),
+	}
+	pkgs, err := packages.Load(cfg, path)
+	if err != nil {
+		panic(err)
+	}
+	pkg := pkgs[0]
 
-func (te TargetEnum) Name() string {
-	return te.name
+	vals := []string{}
+	for _, s := range pkg.Syntax {
+		ast.Inspect(s, func(n ast.Node) bool {
+			decl, ok := n.(*ast.GenDecl)
+			if !ok || decl.Tok != token.CONST {
+				return true
+			}
+
+			for _, spec := range decl.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+
+				if typeIdent, ok := valueSpec.Type.(*ast.Ident); ok {
+					if typeIdent.Name != typeName {
+						break
+					}
+				}
+
+				for _, n := range valueSpec.Names {
+					vals = append(vals, n.Name)
+				}
+
+			}
+
+			return false
+		})
+	}
+
+	return vals
 }
 
 func (se SourceEnum) Path() string {

@@ -17,7 +17,7 @@ func main() {
 	// rule.RegisterRuleParser("qual", parseQualRule)
 	// rule.RegisterRuleParser("enum", parseEnumRule)
 
-	mapperFile := parse("./mapper.go")
+	mapperFile := parse("./mapper_def.go")
 	// gen.Generate(mapperFile)
 	checkEmapper(mapperFile)
 	// check(mapperFile)
@@ -49,12 +49,9 @@ func checkEmapper(mapperFile mapp.File) {
 			fmt.Printf("comment.Value(): %v\n", c.Value())
 		}
 
-		for _, p := range em.EnumPairs() {
-			fmt.Println("Enum source")
-			fmt.Printf("Path: %s FullName: %s.%s\n", p.Source().Path(),  p.Source().Type(), p.Source().Name())
-
-			fmt.Println("Enum target")
-			fmt.Printf("Path: %s FullName: %s.%s\n", p.Target().Path(), p.Target().Type(), p.Target().Name())
+		sourceT, targetT := em.Source().Type(), em.Target().Type()
+		for s, t := range em.EnumsMap() {
+			fmt.Printf("Found mapping from '%s.%s' to '%s.%s'\n", sourceT, s, targetT, t)
 		}
 
 		for _, r := range em.Results() {

@@ -22,7 +22,7 @@ type Mapper interface {
 	MapPersonToDTO(p domain.Person) d.Person
 
 	//@emapper
-	//@eqname
+	//@ignore -s=Vip -t=Crazy
 	//@ignorecase
 	MapPersonTypeToDto(pt domain.PersonType) d.PersonType
 
