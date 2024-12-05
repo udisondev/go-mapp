@@ -24,7 +24,7 @@ const (
 	Simple PersonType = iota + 1
 	Important
 	Vip
-	Fun
+	FUN
 )
 
 type Profile struct {

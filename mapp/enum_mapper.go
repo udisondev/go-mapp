@@ -10,7 +10,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var emapperRuleReg = regexp.MustCompile(`^@enum `)
+var emapperRuleReg = regexp.MustCompile(`^@(enum|ignore|eqname|ignorecase) `)
 
 type EnumMapper struct {
 	spec    *ast.Field

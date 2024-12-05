@@ -17,7 +17,7 @@ func main() {
 	// rule.RegisterRuleParser("qual", parseQualRule)
 	// rule.RegisterRuleParser("enum", parseEnumRule)
 
-	mapperFile := parse("./mapper/mapper.go")
+	mapperFile := parse("./mapper.go")
 	// gen.Generate(mapperFile)
 	checkEmapper(mapperFile)
 	// check(mapperFile)

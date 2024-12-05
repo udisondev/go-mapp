@@ -62,7 +62,7 @@ func Generate(mf mapp.File) {
 		mfn.generateBlock()
 	}
 
-	err := f.Save("./mapper/mapper_impl.go")
+	err := f.Save("./mapper_impl.go")
 	if err != nil {
 		log.Fatalf("failed to save file: %v", err)
 	}

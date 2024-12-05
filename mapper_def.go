@@ -1,4 +1,4 @@
-package mapper
+package main
 
 import (
 	"strings"
@@ -22,7 +22,8 @@ type Mapper interface {
 	MapPersonToDTO(p domain.Person) d.Person
 
 	//@emapper
-	//@enum Simple=Simple Important=Important Vip=Fun Fun=Fun
+	//@eqname
+	//@ignorecase
 	MapPersonTypeToDto(pt domain.PersonType) d.PersonType
 
 	//@qual -s=FirstName -t=.Firstname
