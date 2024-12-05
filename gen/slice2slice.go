@@ -37,7 +37,7 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
 			Make(
 				jen.Index().Qual(targetTypePath, t.Type().TypeName()),
 				jen.Lit(0),
-				jen.Len(jen.Id("target").Dot(t.Name())))
+				jen.Len(jen.Id("src").Dot(t.Name())))
 		bl.
 			For(
 				jen.List(jen.Id("_"), jen.Id("it")).Op(":=").Range().Id("src").Dot(s.Name()),
