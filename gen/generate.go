@@ -57,7 +57,7 @@ func Generate(mf mapp.File) {
 				continue
 			}
 		}
-		
+
 		generateEnumMapper(f, em, func(s, t string, em mapp.EnumMapper) { enumMappers[s] = map[string]mapp.EnumMapper{t: em} })
 	}
 	for _, m := range mf.Mappers() {
@@ -117,20 +117,34 @@ func generateEnumMapper(f *jen.File, em mapp.EnumMapper, include func(s, t strin
 			})
 
 			g.Line()
-			def, ok := em.Default()
-			if ok && withErr {
-				g.Return(jen.Qual(targetPath, def), jen.Nil())
-				return
-			} else if ok {
-				g.Return(jen.Qual(targetPath, def))
-				return
-			}
-			if withErr {
-				g.Return(jen.Lit(0), jen.Qual("fmt", "Errorf").Call(jen.Lit(msg), jen.Id("pt")))
-				return
-			}
 
-			g.Panic(jen.Qual("fmt", "Sprintf").Call(jen.Lit("unsupported enum value: %v"), jen.Id(em.Source().Name())))
+			def, ok := em.Default()
+			switch {
+			case ok && def.IsConst && withErr:
+				g.Return(jen.Qual(targetPath, def.Value), jen.Nil())
+			case ok && def.IsConst:
+				g.Return(jen.Qual(targetPath, def.Value))
+			case ok && withErr:
+				if def.IsString {
+					g.Return(jen.Lit(def.Value), jen.Nil())
+				} else {
+					g.Return(jen.Id(def.Value), jen.Nil())
+				}
+			case ok:
+				if def.IsString {
+					g.Return(jen.Lit(def.Value))
+				} else {
+					g.Return(jen.Id(def.Value))
+				}
+			case withErr:
+				if def.IsString {
+					g.Return(jen.Lit(def.Value), jen.Qual("fmt", "Errorf").Call(jen.Lit(msg), jen.Id("pt")))
+				} else {
+					g.Return(jen.Id(def.Value), jen.Qual("fmt", "Errorf").Call(jen.Lit(msg), jen.Id("pt")))
+				}
+			default:
+				g.Panic(jen.Qual("fmt", "Sprintf").Call(jen.Lit("unsupported enum value: %v"), jen.Id(em.Source().Name())))
+			}
 		})
 	f.Line()
 }

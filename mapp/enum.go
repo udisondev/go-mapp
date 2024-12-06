@@ -49,7 +49,6 @@ func (e Enum) Values() []string {
 				for _, n := range valueSpec.Names {
 					vals = append(vals, n.Name)
 				}
-
 			}
 
 			return false
@@ -57,6 +56,63 @@ func (e Enum) Values() []string {
 	}
 
 	return vals
+}
+
+func (e Enum) BaseType() string {
+	_, typeName := e.Type()
+	cfg := &packages.Config{
+		Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
+		Fset: token.NewFileSet(),
+	}
+	pkgs, err := packages.Load(cfg, e.Path())
+	if err != nil {
+		panic(err)
+	}
+	pkg := pkgs[0]
+
+	var baseType string
+	for _, s := range pkg.Syntax {
+		ast.Inspect(s, func(n ast.Node) bool {
+			decl, ok := n.(*ast.GenDecl)
+			if !ok || decl.Tok != token.CONST {
+				return true
+			}
+
+			for _, spec := range decl.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+
+				typeIdent, ok := valueSpec.Type.(*ast.Ident)
+				if !ok {
+					continue
+				}
+
+				if typeIdent.Name != typeName {
+					continue
+				}
+
+				typeSpec, ok := typeIdent.Obj.Decl.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+
+				baseIdent, ok := typeSpec.Type.(*ast.Ident)
+				if !ok {
+					continue
+				}
+
+				baseType = baseIdent.Name
+				return false
+
+			}
+
+			return false
+		})
+	}
+
+	return baseType
 }
 
 func (e Enum) Type() (string, string) {

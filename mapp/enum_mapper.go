@@ -3,13 +3,24 @@ package mapp
 import (
 	"go/ast"
 	"log"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
+
+var strreg = regexp.MustCompile(`^".*"$`)
 
 type EnumMapper struct {
 	spec    *ast.Field
 	imports []Import
+}
+
+type Default struct {
+	Type     string
+	Value    string
+	IsConst  bool
+	IsString bool
 }
 
 const (
@@ -236,14 +247,160 @@ func (em EnumMapper) Errormsg() (string, bool) {
 	return "unknown source enum: %v", true
 }
 
-func (em EnumMapper) Default() (string, bool) {
+func (em EnumMapper) Default() (Default, bool) {
+	def := Default{}
+	tt := em.Target().BaseType()
 	for _, c := range em.Comments() {
 		if !strings.HasPrefix(c.Value(), "@def") {
-			continue
+			switch tt {
+			case "int", "int8", "int16", "int32", "int64":
+				return Default{
+					Type:     tt,
+					Value:    "0",
+					IsString: tt == "string",
+					IsConst:  false,
+				}, false
+			case "uint", "uint8", "uint16", "uint32", "uint64":
+
+				return Default{
+					Type:     tt,
+					Value:    "0",
+					IsString: tt == "string",
+					IsConst:  false,
+				}, false
+			case "float32", "float64":
+				return Default{
+					Type:     tt,
+					Value:    "0",
+					IsString: tt == "string",
+					IsConst:  false,
+				}, false
+			case "string":
+				return Default{
+					Type:     tt,
+					Value:    `""`,
+					IsString: tt == "string",
+					IsConst:  false,
+				}, false
+			case "bool":
+				return Default{
+					Type:     tt,
+					Value:    "false",
+					IsString: tt == "string",
+					IsConst:  false,
+				}, false
+			}
+
 		}
 
 		defConf := strings.Split(c.Value(), " ")
-		return defConf[1], true
+		if len(defConf) != 2 {
+			log.Fatalf(`
+			%s has invalid @def format '%s'.
+			Examples:
+			1) If target is string -> '@def "any value" or '@def ""'
+			2) If target is integer -> '@def 0' or '@def 5' itc
+			3) If target is float -> '@def 4.7' or '@def 0' itc
+			4) If target is bool -> '@def true' or '@def false
+			5) Or any target enum value without type specifying -> if target has AnyType.Value '@def Value'`, em.Name(), c.Value())
+		}
+		defVal := defConf[1]
+
+		if slices.Contains(em.Target().Values(), defVal) {
+			return Default{
+				Type:     tt,
+				Value:    defVal,
+				IsString: tt == "string",
+				IsConst:  true,
+			}, true
+		}
+
+		switch tt {
+		case "int", "int8", "int16", "int32", "int64":
+			bitSizeVal := strings.ReplaceAll(tt, "int", "")
+			bitSize := 32
+			if bitSizeVal != "" && bitSizeVal != "32" {
+				var bitSizeErr error
+				bitSize, bitSizeErr = strconv.Atoi(bitSizeVal)
+				if bitSizeErr != nil {
+					panic(bitSizeErr.Error())
+				}
+			}
+			_, err := strconv.ParseInt(defVal, 10, bitSize)
+			if err != nil {
+				log.Fatalf("%s has invalid @def value '%s'. Target type is int"+bitSizeVal, em.Name(), defVal)
+			}
+			return Default{
+				Type:     tt,
+				Value:    defVal,
+				IsString: tt == "string",
+				IsConst:  false,
+			}, true
+		case "uint", "uint8", "uint16", "uint32", "uint64":
+			bitSizeVal := strings.ReplaceAll(tt, "uint", "")
+			bitSize := 32
+			if bitSizeVal != "" && bitSizeVal != "32" {
+				var bitSizeErr error
+				bitSize, bitSizeErr = strconv.Atoi(bitSizeVal)
+				if bitSizeErr != nil {
+					panic(bitSizeErr.Error())
+				}
+			}
+			_, err := strconv.ParseUint(defVal, 10, bitSize)
+			if err != nil {
+				log.Fatalf("%s has invalid @def value '%s'. Target type is uint"+bitSizeVal, em.Name(), defVal)
+			}
+			return Default{
+				Type:     tt,
+				Value:    defVal,
+				IsString: tt == "string",
+				IsConst:  false,
+			}, true
+		case "float32", "float64":
+			bitSizeVal := strings.ReplaceAll(tt, "float", "")
+			bitSize := 32
+			if bitSizeVal != "" && bitSizeVal != "32" {
+				var bitSizeErr error
+				bitSize, bitSizeErr = strconv.Atoi(bitSizeVal)
+				if bitSizeErr != nil {
+					panic(bitSizeErr.Error())
+				}
+			}
+			_, err := strconv.ParseFloat(defVal, bitSize)
+			if err != nil {
+				log.Fatalf("%s has invalid @def value '%s'. Target type is float"+bitSizeVal, em.Name(), defVal)
+			}
+			return Default{
+				Type:     tt,
+				Value:    defVal,
+				IsString: tt == "string",
+				IsConst:  false,
+			}, true
+		case "string":
+			if !strreg.MatchString(defVal) {
+				log.Fatalf("%s has invelid @def value: %s. Must be wrapped by quotes.", em.Name(), defVal)
+			}
+			return Default{
+				Type:     tt,
+				Value:    strings.ReplaceAll(defVal, "\"", ""),
+				IsString: tt == "string",
+				IsConst:  false,
+			}, true
+		case "bool":
+			if _, err := strconv.ParseBool(defVal); err != nil {
+				log.Fatalf("%s has invalid @def value '%s'. Target type bool", em.Name(), defVal)
+			}
+			return Default{
+				Type:     tt,
+				Value:    defVal,
+				IsString: tt == "string",
+				IsConst:  false,
+			}, true
+		}
+
+		log.Fatalf("%s could not resolve @def value '%s'", em.Name(), defVal)
+
 	}
-	return "", false
+
+	return def, false
 }

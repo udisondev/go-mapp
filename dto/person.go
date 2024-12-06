@@ -14,7 +14,7 @@ type Person struct {
 	Projects    []string
 }
 
-type PersonType int
+type PersonType uint8
 const (
 	Simple PersonType = iota + 1
 	Important
