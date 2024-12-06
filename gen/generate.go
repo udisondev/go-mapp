@@ -18,6 +18,7 @@ type mapperFunc struct {
 	source             mapp.Field
 	target             mapp.Field
 	submappers         map[string]string
+	enmMappers         map[string]map[string]mapp.EnumMapper
 	fieldMapGenerators map[mapp.TypeFamily]map[mapp.TypeFamily]func(bl mapperBlock, s, t mapp.Field)
 }
 
@@ -57,7 +58,6 @@ func Generate(mf mapp.File) {
 				continue
 			}
 		}
-
 		generateEnumMapper(f, em, func(s, t string, em mapp.EnumMapper) { enumMappers[s] = map[string]mapp.EnumMapper{t: em} })
 	}
 	for _, m := range mf.Mappers() {
@@ -67,6 +67,7 @@ func Generate(mf mapp.File) {
 			generatedFn:        f.Func().Id(m.Name()),
 			mapper:             m,
 			submappers:         submappers,
+			enmMappers: enumMappers,
 			fieldMapGenerators: fieldMapGenerators,
 		}
 		f.Line()

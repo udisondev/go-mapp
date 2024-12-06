@@ -24,8 +24,12 @@ type Mapper interface {
 	//@emapper
 	//@ignore -s=Vip -t=Crazy
 	//@ignorecase
-	//@def Simple
-	MapPersonTypeToDto(pt domain.PersonType) (d.PersonType, error)
+	MapPersonTypeToDto(pt domain.PersonType) d.PersonType
+
+	//@emapper
+	//@ignorecase
+	//@ignore -s=Crazy -t=Vip
+	MapPersonTypeToDomain(pt d.PersonType) domain.PersonType
 
 	//@qual -s=FirstName -t=.Firstname
 	//@qual -s=Phone -t=.Profile.Number
