@@ -5,7 +5,7 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func structToStruct(bl mapperBlock, s, t mapp.Field) {
+func structToStruct(bl mapperBlock, s, t mapp.Field) error{
 	hash := fieldsHash(s, t)
 	submapperName, submapperExists := bl.submappers[hash]
 	if !submapperExists {
@@ -30,6 +30,11 @@ func structToStruct(bl mapperBlock, s, t mapp.Field) {
 		}
 		bl.file.Line()
 		mfn.generateSignature()
-		mfn.generateBlock()
+		err := mfn.generateBlock()
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }

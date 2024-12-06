@@ -7,17 +7,17 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func pointerToBasic(bl mapperBlock, s, t mapp.Field) {
+func pointerToBasic(bl mapperBlock, s, t mapp.Field) error {
 	pt, ok := s.Type().(mapp.PointerType)
 	if !ok {
 		panic("is not a pointer")
 	}
 
 	if t.Type().TypeName() != s.Type().TypeName() {
-		panic(fmt.Sprintf(
+		return fmt.Errorf(
 			"could not mapp different types source: '*%s' target: %s",
 			pt.Elem().TypeFamily(),
-			t.Type().TypeFamily()))
+			t.Type().TypeFamily())
 	}
 
 	bl.If(
@@ -25,4 +25,6 @@ func pointerToBasic(bl mapperBlock, s, t mapp.Field) {
 	).Block(
 		jen.Id("target").Dot(t.Name()).Op("=").Add(jen.Op("*")).Id("src").Dot(s.Name()),
 	)
+
+	return nil
 }

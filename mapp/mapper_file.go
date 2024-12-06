@@ -1,7 +1,6 @@
 package mapp
 
 import (
-	"fmt"
 	"go/ast"
 	"strings"
 )
@@ -67,7 +66,6 @@ func (f File) EnumsMappers() []EnumMapper {
 
 		imports := f.Imports()
 		for _, v := range iface.Methods.List {
-			fmt.Printf("found method name: %s\n", v.Names[0].Name)
 			var isEmapper bool
 			for _, d := range v.Doc.List {
 				if strings.Contains(d.Text, "@emapper") {
@@ -77,7 +75,6 @@ func (f File) EnumsMappers() []EnumMapper {
 			if !isEmapper {
 				continue
 			}
-			fmt.Printf("found enum mapper: %s\n", v.Names[0].Name)
 
 			emapper := EnumMapper{
 				spec:    v,

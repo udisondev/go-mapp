@@ -1,17 +1,19 @@
 package gen
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func namedToNamed(bl mapperBlock, s, t mapp.Field) {
+func namedToNamed(bl mapperBlock, s, t mapp.Field) error {
 	enmmap, ok := bl.enmMappers[fieldHash(s)][fieldHash(t)]
 	if !ok {
-		log.Fatalf("Cold not map from %s to %s. Define @emapper please", s.FullName(), t.FullName())
+		return fmt.Errorf("define @emapper please")
 	}
 
 	bl.Id("target").Dot(t.Name()).Op("=").Id(enmmap.Name()).Call(jen.Id("src").Dot(s.Name()))
+
+	return nil
 }

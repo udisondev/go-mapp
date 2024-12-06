@@ -6,8 +6,8 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func pointerToPointer(bl mapperBlock, s, t mapp.Field) {
-	fmt.Printf("%s to %s has no mapper", s.FullName(), t.FullName())
+func pointerToPointer(bl mapperBlock, s, t mapp.Field) error{
+	fmt.Printf("%s to %s has no mapper\n", s.FullName(), t.FullName())
 	// TODO доделать
 	// spt, ok := s.Type().(mapp.PointerType)
 	// if !ok {
@@ -30,4 +30,6 @@ func pointerToPointer(bl mapperBlock, s, t mapp.Field) {
 	// 		structToStruct(bl, s, t)
 	// 	},
 	// )
+
+	return nil
 }

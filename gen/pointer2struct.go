@@ -5,7 +5,7 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func pointerToStruct(bl mapperBlock, s, t mapp.Field) {
+func pointerToStruct(bl mapperBlock, s, t mapp.Field) error{
 	bl.If(
 		jen.Id("src").Dot(s.Name()).Op("!=").Nil(),
 	).BlockFunc(
@@ -14,4 +14,6 @@ func pointerToStruct(bl mapperBlock, s, t mapp.Field) {
 			structToStruct(bl, s, t)
 		},
 	)
+	
+	return nil
 }

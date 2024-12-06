@@ -5,7 +5,7 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
+func sliceToSlice(bl mapperBlock, s, t mapp.Field) error{
 
 	sslice, ok := s.Type().(mapp.SliceType)
 	if !ok {
@@ -60,8 +60,13 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field) {
 			}
 			bl.file.Line()
 			mfn.generateSignature()
-			mfn.generateBlock()
+			err := mfn.generateBlock()
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 
 }
