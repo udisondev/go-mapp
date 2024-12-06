@@ -1,6 +1,7 @@
 package mapp
 
 import (
+	"fmt"
 	"go/ast"
 	"log"
 	"regexp"
@@ -248,49 +249,10 @@ func (em EnumMapper) Errormsg() (string, bool) {
 }
 
 func (em EnumMapper) Default() (Default, bool) {
-	def := Default{}
 	tt := em.Target().BaseType()
 	for _, c := range em.Comments() {
 		if !strings.HasPrefix(c.Value(), "@def") {
-			switch tt {
-			case "int", "int8", "int16", "int32", "int64":
-				return Default{
-					Type:     tt,
-					Value:    "0",
-					IsString: tt == "string",
-					IsConst:  false,
-				}, false
-			case "uint", "uint8", "uint16", "uint32", "uint64":
-
-				return Default{
-					Type:     tt,
-					Value:    "0",
-					IsString: tt == "string",
-					IsConst:  false,
-				}, false
-			case "float32", "float64":
-				return Default{
-					Type:     tt,
-					Value:    "0",
-					IsString: tt == "string",
-					IsConst:  false,
-				}, false
-			case "string":
-				return Default{
-					Type:     tt,
-					Value:    `""`,
-					IsString: tt == "string",
-					IsConst:  false,
-				}, false
-			case "bool":
-				return Default{
-					Type:     tt,
-					Value:    "false",
-					IsString: tt == "string",
-					IsConst:  false,
-				}, false
-			}
-
+			continue
 		}
 
 		defConf := strings.Split(c.Value(), " ")
@@ -315,6 +277,8 @@ func (em EnumMapper) Default() (Default, bool) {
 			}, true
 		}
 
+		suffixMsg := fmt.Sprintf("Define value with correct type or use any of: %v", em.Target().Values())
+
 		switch tt {
 		case "int", "int8", "int16", "int32", "int64":
 			bitSizeVal := strings.ReplaceAll(tt, "int", "")
@@ -328,7 +292,7 @@ func (em EnumMapper) Default() (Default, bool) {
 			}
 			_, err := strconv.ParseInt(defVal, 10, bitSize)
 			if err != nil {
-				log.Fatalf("%s has invalid @def value '%s'. Target type is int"+bitSizeVal, em.Name(), defVal)
+				log.Fatalf("%s has invalid @def value '%s'. Target type is int%s. %s", em.Name(), defVal, bitSizeVal, suffixMsg)
 			}
 			return Default{
 				Type:     tt,
@@ -348,7 +312,7 @@ func (em EnumMapper) Default() (Default, bool) {
 			}
 			_, err := strconv.ParseUint(defVal, 10, bitSize)
 			if err != nil {
-				log.Fatalf("%s has invalid @def value '%s'. Target type is uint"+bitSizeVal, em.Name(), defVal)
+				log.Fatalf("%s has invalid @def value '%s'. Target type is uint%s. %s", em.Name(), defVal, bitSizeVal, suffixMsg)
 			}
 			return Default{
 				Type:     tt,
@@ -368,7 +332,7 @@ func (em EnumMapper) Default() (Default, bool) {
 			}
 			_, err := strconv.ParseFloat(defVal, bitSize)
 			if err != nil {
-				log.Fatalf("%s has invalid @def value '%s'. Target type is float"+bitSizeVal, em.Name(), defVal)
+				log.Fatalf("%s has invalid @def value '%s'. Target type is float%s. %s", em.Name(), defVal, bitSizeVal, suffixMsg)
 			}
 			return Default{
 				Type:     tt,
@@ -388,7 +352,7 @@ func (em EnumMapper) Default() (Default, bool) {
 			}, true
 		case "bool":
 			if _, err := strconv.ParseBool(defVal); err != nil {
-				log.Fatalf("%s has invalid @def value '%s'. Target type bool", em.Name(), defVal)
+				log.Fatalf("%s has invalid @def value '%s'. Target type bool. %s", em.Name(), defVal, suffixMsg)
 			}
 			return Default{
 				Type:     tt,
@@ -399,8 +363,46 @@ func (em EnumMapper) Default() (Default, bool) {
 		}
 
 		log.Fatalf("%s could not resolve @def value '%s'", em.Name(), defVal)
-
 	}
 
-	return def, false
+	switch tt {
+	case "int", "int8", "int16", "int32", "int64":
+		return Default{
+			Type:     tt,
+			Value:    "0",
+			IsString: tt == "string",
+			IsConst:  false,
+		}, false
+	case "uint", "uint8", "uint16", "uint32", "uint64":
+
+		return Default{
+			Type:     tt,
+			Value:    "0",
+			IsString: tt == "string",
+			IsConst:  false,
+		}, false
+	case "float32", "float64":
+		return Default{
+			Type:     tt,
+			Value:    "0",
+			IsString: tt == "string",
+			IsConst:  false,
+		}, false
+	case "string":
+		return Default{
+			Type:     tt,
+			Value:    `""`,
+			IsString: tt == "string",
+			IsConst:  false,
+		}, false
+	case "bool":
+		return Default{
+			Type:     tt,
+			Value:    "false",
+			IsString: tt == "string",
+			IsConst:  false,
+		}, false
+	}
+
+	return Default{}, false
 }

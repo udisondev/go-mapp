@@ -24,6 +24,7 @@ type Mapper interface {
 	//@emapper
 	//@ignore -s=Vip -t=Crazy
 	//@ignorecase
+	//@def Simple
 	MapPersonTypeToDto(pt domain.PersonType) (d.PersonType, error)
 
 	//@qual -s=FirstName -t=.Firstname
