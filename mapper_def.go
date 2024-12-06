@@ -19,6 +19,7 @@ type Mapper interface {
 	//@qual -s=Firstname -t=.FirstName
 	//@qual -t=.LastName -mn=lastNameMapper
 	//@qual -s=Number -t=.Profile.Phone
+	//@ignore -t=.Email
 	MapPersonToDTO(p domain.Person) d.Person
 
 	//@emapper

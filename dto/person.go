@@ -12,6 +12,7 @@ type Person struct {
 	Profile     Profile
 	Type        PersonType
 	Projects    []string
+	Email string
 }
 
 type PersonType uint8

@@ -222,7 +222,7 @@ func (bl mapperBlock) generateTargetMapping(target mapp.Field) error {
 
 	source, ok := bl.mapper.SourceFieldByTarget(target.FullName())
 	if !ok {
-		panic(fmt.Sprintf("not found source field for target: %s", target.FullName()))
+		return fmt.Errorf("'%s' has no source field. Use '@ignore -t=%s' or '@qual -t=%s -s=<.Path.To.The.Source>'", target.FullName(), target.FullName(), target.FullName())
 	}
 
 	genFn, ok := bl.fieldMapGenerators[source.Type().TypeFamily()][target.Type().TypeFamily()]
