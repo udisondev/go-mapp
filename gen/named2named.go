@@ -3,48 +3,36 @@ package gen
 import (
 	"fmt"
 
-	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
 func namedToNamed(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
+	genParams := gParams(opts...)
+
 	enmmap, ok := bl.enmMappers[fieldHash(s)][fieldHash(t)]
 	if !ok {
 		return fmt.Errorf("define @emapper please")
 	}
 
+	enmOpts := []genOpts(opts)
 	_, enmmapWithErr := enmmap.Errormsg()
-	resVar := "enm" + t.Name()
-
-	returns := []Code{}
-
-	switch {
-	case bl.mapper.WithError() && enmmapWithErr:
-		errVar := "map" + t.Name() + "Err"
-		bl.List(Id(resVar), Id(errVar)).Op(":=").Id(enmmap.Name()).Call(Id("src").Dot(s.Name()))
-		bl.If(Id(errVar).Op("!=").Nil()).BlockFunc(func(g *Group) {
-			if bl.mapperFunc.isRoot {
-				returns = append(returns, Qual(bl.mapper.Target().Path(), bl.mapper.Target().TypeName()).Block())
-			} else {
-				returns  = append(returns, Qual(bl.mapperFunc.target.Type().Path(), bl.mapperFunc.target.Type().TypeName()).Block())
-			}
-			
-			if enmmapWithErr {
-				returns = append(returns, Id(errVar))
-			}
-
-			g.Return(returns...)
-		})
-		bl.Id("target").Dot(t.Name()).Op("=").Id(resVar)
-	case enmmapWithErr:
-		bl.List(Id(resVar), Id("err")).Op(":=").Id(enmmap.Name()).Call(Id("src").Dot(s.Name()))
-		bl.If(Id("err").Op("!=").Nil()).Block(
-			Panic(Qual("fmt", "Sprintf").Call(Lit(fmt.Sprintf("error map '%s%s'", bl.mapper.Target().TypeName(), t.FullName())+": %v"), Id("err").Dot("Error").Call())),
-		)
-		bl.Id("target").Dot(t.Name()).Op("=").Id(resVar)
-	default:
-		bl.Id("target").Dot(t.Name()).Op("=").Id(enmmap.Name()).Call(Id("src").Dot(s.Name()))
+	if enmmapWithErr && !genParams.withErr {
+		enmOpts = append(enmOpts, withPanic(fmt.Sprintf("error map '%s%s'", bl.mapper.Target().TypeName(), t.FullName())))
 	}
+
+	path := bl.mapper.Target().Path()
+	typeName := bl.mapper.Target().TypeName()
+	resVar := "enm" + t.Name()
+	errVar := "map" + t.Name() + "Err"
+
+	if !genParams.isTargetStrct {
+		path = bl.mapperFunc.target.Type().Path()
+		typeName = bl.mapperFunc.target.Type().TypeName()
+	}
+
+	methodSource(assignTo(bl.Group, resVar, errVar), enmmap.Name(), s.Name())
+	returnMapResult(ifErrNotNil(bl.Group, errVar), path, typeName, errVar, enmOpts...)
+	basicSource(assignToTarget(bl.Group, t.Name()), resVar)
 
 	return nil
 }

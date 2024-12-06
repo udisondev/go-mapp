@@ -22,7 +22,7 @@ func structToStruct(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
 		bl.submappers[hash] = submapperName
 	}
 	
-	errVar := "map" + t.Name() + "err"
+	errVar := "map" + t.Name() + "Err"
 	resVar := "target" + t.Name()
 	var srcVar Code
 	if genParam.srcIsPointer {

@@ -30,6 +30,10 @@ type mapperBlock struct {
 
 type genParams struct {
 	srcIsPointer, targetIsPointer bool
+	withErr                       bool
+	withPanic                     bool
+	panicMsg                      string
+	isTargetStrct                 bool
 }
 
 type genOpts func(genParams) genParams
@@ -37,6 +41,28 @@ type genOpts func(genParams) genParams
 func withSrcIsPointer() genOpts {
 	return func(gp genParams) genParams {
 		gp.srcIsPointer = true
+		return gp
+	}
+}
+
+func withErr(b bool) genOpts {
+	return func(gp genParams) genParams {
+		gp.withErr = b
+		return gp
+	}
+}
+
+func isTargetStrct(b bool) genOpts {
+	return func(gp genParams) genParams {
+		gp.isTargetStrct = b
+		return gp
+	}
+}
+
+func withPanic(msg string) genOpts {
+	return func(gp genParams) genParams {
+		gp.withPanic = true
+		gp.panicMsg = msg
 		return gp
 	}
 }
@@ -98,13 +124,12 @@ func Generate(mf mapp.File) {
 	}
 }
 
-
 func generateEnumMapper(f *File, em mapp.EnumMapper, include func(s, t string, em mapp.EnumMapper)) {
 	sourcePath := em.Source().Path()
 	targetPath := em.Target().Path()
 	_, sourceT := em.Source().Type()
 	_, targetT := em.Target().Type()
-	
+
 	include(enumHash(em.Source()), enumHash(em.Target()), em)
 
 	msg, withErr := em.Errormsg()
@@ -166,7 +191,7 @@ func (m mapperFunc) generateSignature() {
 		m.generatedFn.Params(Qual(m.target.Type().Path(), m.target.Type().TypeName()), jen.Error())
 		return
 	}
-	
+
 	for i, p := range m.mapper.Params() {
 		_, typeName := p.Type()
 		pname := p.Name()
@@ -175,7 +200,7 @@ func (m mapperFunc) generateSignature() {
 		}
 		m.generatedFn.Params(Id(pname).Qual(p.Path(), typeName))
 	}
-	
+
 	returns := []Code{}
 	for _, r := range m.mapper.Results() {
 		_, typeName := r.Type()
@@ -219,7 +244,7 @@ func (m mapperFunc) generateBlock() error {
 		}
 		bl.Line()
 		returns := []jen.Code{Id("target")}
-		if !m.isRoot || m.mapper.WithError(){
+		if !m.isRoot || m.mapper.WithError() {
 			returns = append(returns, Nil())
 		}
 
@@ -245,7 +270,7 @@ func (bl mapperBlock) generateTargetMapping(target mapp.Field) error {
 		panic(fmt.Sprintf("unsupported mapping from: %s to %s", source.Type().TypeFamily(), target.Type().TypeFamily()))
 	}
 
-	err := genFn(bl, source, target)
+	err := genFn(bl, source, target, isTargetStrct(bl.isRoot), withErr(bl.mapper.WithError()))
 	if err != nil {
 		return fmt.Errorf("error generate mapping from '%s%s' to '%s%s': %w", source.Type().TypeName(), source.FullName(), target.Type().TypeName(), target.FullName(), err)
 	}
