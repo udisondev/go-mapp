@@ -1,22 +1,57 @@
 package gen
 
 import (
-	"github.com/dave/jennifer/jen"
+	"fmt"
+
+	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func structToStruct(bl mapperBlock, s, t mapp.Field) error{
+func structToStruct(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
+	genParam := genParams{}
+
+	returns := []Code{}
+	for _, fn := range opts {
+		genParam = fn(genParam)
+	}
+
 	hash := fieldsHash(s, t)
 	submapperName, submapperExists := bl.submappers[hash]
 	if !submapperExists {
 		submapperName = genRandomName(10)
 		bl.submappers[hash] = submapperName
 	}
-	if s.Type().TypeFamily() != mapp.FieldTypePointer {
-		bl.Id("target").Dot(t.Name()).Op("=").Id(submapperName).Call(jen.Id("src").Dot(s.Name()))
+	
+	errVar := "map" + t.Name() + "err"
+	resVar := "target" + t.Name()
+	var srcVar Code
+	if genParam.srcIsPointer {
+		srcVar = Add(Op("*")).Id("src").Dot(s.Name())
 	} else {
-		bl.Id("target").Dot(t.Name()).Op("=").Id(submapperName).Call(jen.Add(jen.Op("*")).Id("src").Dot(s.Name()))
+		srcVar = Id("src").Dot(s.Name())
 	}
+	bl.List(Id(resVar), Id(errVar)).Op(":=").Id(submapperName).Call(srcVar)
+	bl.If(Id(errVar)).Op("!=").Nil().BlockFunc(func(g *Group) {
+		withErr := bl.mapper.WithError()
+		if !withErr {
+			g.Panic(Qual("fmt", "Sprintf").Call(Lit(fmt.Sprintf("error map '%s%s'", bl.mapper.Target().TypeName(), t.FullName())+": %v"), Id(errVar).Dot("Error").Call()))
+			return
+		}
+
+		if bl.mapperFunc.isRoot {
+			returns = append(returns, Qual(bl.mapper.Target().Path(), bl.mapper.Target().TypeName()).Block())
+			if withErr {
+				returns = append(returns, Id(errVar))
+			}
+		} else {
+			returns = append(returns, Qual(bl.mapperFunc.target.Type().Path(), bl.mapperFunc.target.Type().TypeName()))
+			returns = append(returns, Id(errVar))
+		}
+
+		g.Return(returns...)
+	})
+
+	bl.Id("target").Dot(t.Name()).Op("=").Id(resVar)
 
 	if !submapperExists {
 		mfn := mapperFunc{

@@ -5,13 +5,13 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func pointerToStruct(bl mapperBlock, s, t mapp.Field) error{
+func pointerToStruct(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error{
 	bl.If(
 		jen.Id("src").Dot(s.Name()).Op("!=").Nil(),
 	).BlockFunc(
 		func(g *jen.Group) {
 			bl.Group = g
-			structToStruct(bl, s, t)
+			structToStruct(bl, s, t, withSrcIsPointer())
 		},
 	)
 	

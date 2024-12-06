@@ -25,18 +25,20 @@ type Mapper interface {
 	//@emapper
 	//@ignore -s=Vip -t=Crazy
 	//@ignorecase
-	MapPersonTypeToDto(pt domain.PersonType) d.PersonType
+	MapPersonTypeToDto(pt domain.PersonType) (d.PersonType, error)
 
 	//@emapper
 	//@ignorecase
 	//@ignore -s=Crazy -t=Vip
-	MapPersonTypeToDomain(pt d.PersonType) domain.PersonType
+	//@errf ("I dont want to handle this: %v", pt)
+	//@def Vip
+	MapPersonTypeToDomain(pt d.PersonType) (domain.PersonType, error)
 
 	//@qual -s=FirstName -t=.Firstname
 	//@qual -s=Phone -t=.Profile.Number
 	//@qual -t=.Firstname -s=FirstName
 	//@ignore -t=.MainAccount
-	MapPersonToDomain(p d.Person) domain.Person
+	MapPersonToDomain(p d.Person) (domain.Person, error)
 }
 
 func lastNameMapper(lastName string) string {

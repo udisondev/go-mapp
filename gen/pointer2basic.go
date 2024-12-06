@@ -7,7 +7,7 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func pointerToBasic(bl mapperBlock, s, t mapp.Field) error {
+func pointerToBasic(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
 	pt, ok := s.Type().(mapp.PointerType)
 	if !ok {
 		panic("is not a pointer")

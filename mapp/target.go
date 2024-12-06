@@ -17,6 +17,11 @@ func (t Target) Name() string {
 	return "t"
 }
 
+func (t Target) TypeName() string {
+	_, typeName := t.r.Type()
+	return typeName
+}
+
 func (t Target) Fields() []Field {
 	_, name := t.r.Type()
 	return extractFieldsFromStruct(".", t.r.Path(), name)

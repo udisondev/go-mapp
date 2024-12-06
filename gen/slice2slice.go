@@ -1,11 +1,11 @@
 package gen
 
 import (
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func sliceToSlice(bl mapperBlock, s, t mapp.Field) error{
+func sliceToSlice(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
 
 	sslice, ok := s.Type().(mapp.SliceType)
 	if !ok {
@@ -35,16 +35,34 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field) error{
 		bl.Id(targetSliceName).
 			Op(":=").
 			Make(
-				jen.Index().Qual(targetTypePath, t.Type().TypeName()),
-				jen.Lit(0),
-				jen.Len(jen.Id("src").Dot(t.Name())))
+				Index().Qual(targetTypePath, t.Type().TypeName()),
+				Lit(0),
+				Len(Id("src").Dot(t.Name())))
 		bl.
 			For(
-				jen.List(jen.Id("_"), jen.Id("it")).Op(":=").Range().Id("src").Dot(s.Name()),
+				List(Id("_"), Id("it")).Op(":=").Range().Id("src").Dot(s.Name()),
 			).
-			Block(
-				jen.Id(targetSliceName).Op("=").Append(jen.Id(targetSliceName), jen.Id(submapperName).Call(jen.Id("it"))),
-			)
+			BlockFunc(func(g *Group) {
+				errVar := "map" + t.Name() + "err"
+				resVar := "target" + t.Name()
+				g.List(Id(resVar), Id(errVar)).Op(":=").Id(submapperName).Call(Id("it"))
+				g.If(Id(errVar)).Op("!=").Nil().
+					BlockFunc(func(g *Group) {
+						returns := []Code{}
+						if bl.mapperFunc.isRoot {
+							returns = append(returns, Qual(bl.mapper.Target().Path(), bl.mapper.Target().TypeName()).Block())
+							if bl.mapper.WithError() {
+								returns = append(returns, Id(errVar))
+							}
+						} else {
+							returns = append(returns, Qual(bl.mapperFunc.target.Type().Path(), bl.mapperFunc.target.Type().TypeName()))
+							returns = append(returns, Id(errVar))
+						}
+						g.Return(returns...)
+
+					})
+				g.Id(targetSliceName).Op("=").Append(Id(targetSliceName), Id(resVar))
+			})
 
 		bl.Id("target").Dot(t.Name()).Op("=").Id(targetSliceName)
 

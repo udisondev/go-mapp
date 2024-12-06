@@ -6,7 +6,7 @@ import (
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func pointerToPointer(bl mapperBlock, s, t mapp.Field) error{
+func pointerToPointer(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error{
 	fmt.Printf("%s to %s has no mapper\n", s.FullName(), t.FullName())
 	// TODO доделать
 	// spt, ok := s.Type().(mapp.PointerType)

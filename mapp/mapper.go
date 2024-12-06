@@ -18,6 +18,15 @@ func (m Mapper) Name() string {
 	return m.spec.Names[0].Name
 }
 
+func (m Mapper) WithError() bool {
+	if len(m.Results()) < 2 {
+		return false
+	}
+
+	_, typeName := m.Results()[1].Type()
+	return typeName == "error"
+}
+
 func (m Mapper) Comments() []Comment {
 	comments := make([]Comment, 0, len(m.spec.Doc.List))
 	for _, v := range m.spec.Doc.List {
