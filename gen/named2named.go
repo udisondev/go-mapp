@@ -2,7 +2,7 @@ package gen
 
 import (
 	"fmt"
-
+	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
@@ -30,9 +30,9 @@ func namedToNamed(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
 		typeName = bl.mapperFunc.target.Type().TypeName()
 	}
 
-	methodSource(assignTo(bl.Group, resVar, errVar), enmmap.Name(), s.Name())
-	returnMapResult(ifErrNotNil(bl.Group, errVar), path, typeName, errVar, enmOpts...)
-	basicSource(assignToTarget(bl.Group, t.Name()), resVar)
+	assignTo(bl.Group, func(stmnt *Statement) { methodSource(stmnt, enmmap.Name(), s.Name()) }, resVar, errVar)
+	ifErrNotNil(bl.Group, errVar, func(g *Group) { returnMapResult(g, path, typeName, errVar, enmOpts...) })
+	assignTo(bl.Group, func(stmnt *Statement) { basicSource(stmnt, resVar) }, t.Name())
 
 	return nil
 }

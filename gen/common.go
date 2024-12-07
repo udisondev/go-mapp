@@ -41,16 +41,34 @@ func enumHash(f mapp.Enum) string {
 	return f.Path() + "." + typeName
 }
 
-func panicWithCause(msg, errName string) Code {
-	return Panic(Qual("fmt", "Sprintf").Call(Lit(msg+": %v"), Id(errName).Dot("Error").Call()))
+func panicWithCause(g *Group, msg, errName string) {
+	g.Panic(Qual("fmt", "Sprintf").Call(Lit(msg+": %v"), Id(errName).Dot("Error").Call()))
 }
 
-func assignToTarget(g *Group, fname string) *Statement {
-	return g.Id("target").Dot(fname).Op("=")
+func assignToTarget(g *Group, fname string, fn func(*Statement)) {
+	fn(g.Id("target").Dot(fname).Op("="))
 }
 
-func assignTo(g *Group, names ...string) *Statement {
-	return g.List(lo.Map(names, func(it string, _ int) Code { return Id(it) })...).Op(":=")
+func assignTo(g *Group, fn func(*Statement), names ...string) {
+	fn(g.List(lo.Map(names, func(it string, _ int) Code { return Id(it) })...).Op(":="))
+}
+
+type AssignOpt struct {
+	list []string
+	g    *Group
+}
+
+func assign(g *Group) AssignOpt {
+	return AssignOpt{g: g}
+}
+
+func (a AssignOpt) to(n string) AssignOpt {
+	a.list = append(a.list, n)
+	return a
+}
+
+func (a AssignOpt) from(fn func(*Statement)) {
+	fn(a.g.List(lo.Map(a.list, func(it string, _ int) Code { return Id(it) })...).Op(":="))
 }
 
 func basicSource(trgt *Statement, sourceName string) {
@@ -69,18 +87,86 @@ func gParams(opts ...genOpts) genParams {
 	return genParams
 }
 
-func ifErrNotNil(g *Group, errName string) *Statement {
-	return g.If(Id(errName).Op("!=").Nil())
+func ifErrNotNil(g *Group, errName string, fn func(g *Group)) {
+	g.If(Id(errName).Op("!=").Nil()).BlockFunc(fn)
 }
 
-func returnMapResult(stmnt *Statement, path, typeName, errName string, opts ...genOpts) {
+func makeSlice(fn *Statement, typePath, typeName, fieldName string) {
+	Make(
+		Index().Qual(typePath, typeName),
+		Lit(0),
+		Len(Id("src").Dot(fieldName)))
+}
+
+type forOpts struct {
+	vars []string
+	g    *Group
+}
+
+func forr(g *Group) forOpts {
+	return forOpts{g: g}
+}
+
+func (f forOpts) put(v string) forOpts {
+	f.vars = append(f.vars, v)
+	return f
+}
+
+func (f forOpts) rangForSlice(slcName string) func(fn func(*Group)) {
+	return func(fn func(g *Group)) {
+		f.g.For(List(lo.Map(f.vars, func(it string, _ int) Code { return Id(it) })...)).
+			Range().Id("src").Dot(slcName).
+			BlockFunc(fn)
+	}
+}
+
+type ReturnOpts struct {
+	pts     []struct{ path, typeName string }
+	errName string
+	g       *Group
+}
+
+func ret(g *Group) ReturnOpts {
+	return ReturnOpts{g: g}
+}
+
+func (r ReturnOpts) DefaultVal(path, typeName string) ReturnOpts {
+	r.pts = append(r.pts, struct {
+		path     string
+		typeName string
+	}{path, typeName})
+	return r
+}
+
+func (r ReturnOpts) Err(errName string) ReturnOpts {
+	r.errName = errName
+	return r
+}
+
+func (r ReturnOpts) build() {
+	r.g.Return(lo.Map(r.pts, func(it struct{ path, typeName string }, _ int) Code { return Qual(it.path, it.typeName) })...)
+}
+
+func returnMapResult(g *Group, path, typeName, errName string, opts ...genOpts) {
 	genParams := gParams(opts...)
 	returns := []Code{Qual(path, typeName).Block()}
 	switch {
 	case genParams.withErr:
 		returns = append(returns, Id(errName))
-		stmnt.Block(Return(returns...))
+		g.Return(returns...)
 	case genParams.withPanic:
-		stmnt.Block(panicWithCause(genParams.panicMsg, errName))
+		panicWithCause(g, genParams.panicMsg, errName)
 	}
+}
+
+func mapErrName(fieldName string) string {
+	return "map" + fieldName + "Err"
+}
+
+func targetSliceName(fieldName string) string {
+	return "tt" + fieldName + "Slice"
+}
+
+func targetFieldName(fieldName string) string {
+	return "tt" + fieldName
 }

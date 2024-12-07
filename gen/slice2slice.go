@@ -6,7 +6,7 @@ import (
 )
 
 func sliceToSlice(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
-
+	gParams := gParams(opts...)
 	sslice, ok := s.Type().(mapp.SliceType)
 	if !ok {
 		panic("is not a slice")
@@ -30,41 +30,21 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
 			bl.submappers[hash] = submapperName
 		}
 
-		targetSliceName := "target" + t.Name() + "Slice"
-		targetTypePath := t.Type().Path()
-		bl.Id(targetSliceName).
-			Op(":=").
-			Make(
-				Index().Qual(targetTypePath, t.Type().TypeName()),
-				Lit(0),
-				Len(Id("src").Dot(t.Name())))
-		bl.
-			For(
-				List(Id("_"), Id("it")).Op(":=").Range().Id("src").Dot(s.Name()),
-			).
-			BlockFunc(func(g *Group) {
-				errVar := "map" + t.Name() + "err"
-				resVar := "target" + t.Name()
-				g.List(Id(resVar), Id(errVar)).Op(":=").Id(submapperName).Call(Id("it"))
-				g.If(Id(errVar)).Op("!=").Nil().
-					BlockFunc(func(g *Group) {
-						returns := []Code{}
-						if bl.mapperFunc.isRoot {
-							returns = append(returns, Qual(bl.mapper.Target().Path(), bl.mapper.Target().TypeName()).Block())
-							if bl.mapper.WithError() {
-								returns = append(returns, Id(errVar))
-							}
-						} else {
-							returns = append(returns, Qual(bl.mapperFunc.target.Type().Path(), bl.mapperFunc.target.Type().TypeName()))
-							returns = append(returns, Id(errVar))
-						}
-						g.Return(returns...)
+		assign(bl.Group).
+			to(targetSliceName(t.Name())).
+			from(func(stm *Statement) { makeSlice(stm, t.Type().Path(), t.Type().TypeName(), t.Name()) })
 
-					})
-				g.Id(targetSliceName).Op("=").Append(Id(targetSliceName), Id(resVar))
+		forr(bl.Group).put("_").put("it").rangForSlice(s.Name())(func(g *Group) {
+			assign(g).
+				to(targetFieldName(t.Name())).
+				to(mapErrName(t.Name())).
+				from(func(stm *Statement) { methodSource(stm, submapperName, "it") })
+			ifErrNotNil(g, mapErrName(t.Name()), func(g *Group) {
+				ret(g).
+					DefaultVal(gParams.strPath, gParams.strType).
+					Err(mapErrName(t.Name())).build()
 			})
-
-		bl.Id("target").Dot(t.Name()).Op("=").Id(targetSliceName)
+		})
 
 		if !submapperExists {
 			mfn := mapperFunc{

@@ -34,6 +34,8 @@ type genParams struct {
 	withPanic                     bool
 	panicMsg                      string
 	isTargetStrct                 bool
+	strPath                       string
+	strType                       string
 }
 
 type genOpts func(genParams) genParams
