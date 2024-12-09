@@ -42,14 +42,15 @@ func MapPersonToDTO(src domain.Person) dto.Person {
 	}
 	target.LastName = src.LastName
 	target.MiddleName = &src.MiddleName
-	ttMainAccount, mapMainAccountErr := elwjgofsbw(src.MainAccount)
+	target.Age = src.Age
+	ttMainAccount, mapMainAccountErr := ossyjfdifp(src.MainAccount)
 	if mapMainAccountErr != nil {
 		panic(fmt.Sprintf("error mapping from 'Account.MainAccount' to 'Account.MainAccount': %v", mapMainAccountErr.Error()))
 	}
 	target.MainAccount = ttMainAccount
 	ttAccountSlice := make([]external.Account, 0, len(src.Account))
 	for _, it := range src.Account {
-		ttAccount, mapAccountErr := elwjgofsbw(it)
+		ttAccount, mapAccountErr := ossyjfdifp(it)
 		if mapAccountErr != nil {
 			panic(fmt.Sprintf("error mapping from 'Account.Account' to 'Account.Account': %v", mapAccountErr.Error()))
 		}
@@ -57,7 +58,7 @@ func MapPersonToDTO(src domain.Person) dto.Person {
 	}
 	target.Account = ttAccountSlice
 	if src.Profile != nil {
-		ttProfile, mapProfileErr := gghddiiwue(*src.Profile)
+		ttProfile, mapProfileErr := xqqkibjxyi(*src.Profile)
 		if mapProfileErr != nil {
 			panic(fmt.Sprintf("error mapping from 'Profile.Profile' to 'Profile.Profile': %v", mapProfileErr.Error()))
 		}
@@ -71,9 +72,9 @@ func MapPersonToDTO(src domain.Person) dto.Person {
 	target.Projects = src.Projects
 	return target
 }
-func elwjgofsbw(src external.Account) (external.Account, error) {
+func ossyjfdifp(src external.Account) (external.Account, error) {
 	target := external.Account{}
-	ttLogin, mapLoginErr := uzugzuxxuq(src.Login)
+	ttLogin, mapLoginErr := ftdfptdyph(src.Login)
 	if mapLoginErr != nil {
 		return external.Account{}, fmt.Errorf("error mapping from 'Login.Login' to 'Login.Login': %w", mapLoginErr)
 	}
@@ -81,12 +82,12 @@ func elwjgofsbw(src external.Account) (external.Account, error) {
 	target.Password = src.Password
 	return target, nil
 }
-func uzugzuxxuq(src user.Login) (user.Login, error) {
+func ftdfptdyph(src user.Login) (user.Login, error) {
 	target := user.Login{}
 	target.Value = src.Value
 	return target, nil
 }
-func gghddiiwue(src domain.Profile) (dto.Profile, error) {
+func xqqkibjxyi(src domain.Profile) (dto.Profile, error) {
 	target := dto.Profile{}
 	target.Phone = src.Number
 	return target, nil
@@ -98,16 +99,17 @@ func MapPersonToDomain(src dto.Person) (domain.Person, error) {
 	if src.MiddleName != nil {
 		target.MiddleName = *src.MiddleName
 	}
+	target.Age = src.Age
 	ttAccountSlice := make([]external.Account, 0, len(src.Account))
 	for _, it := range src.Account {
-		ttAccount, mapAccountErr := bppcvhnjmt(it)
+		ttAccount, mapAccountErr := dfgbeupfeu(it)
 		if mapAccountErr != nil {
 			return domain.Person{}, fmt.Errorf("error mapping from 'Account.Account' to 'Account.Account': %w", mapAccountErr)
 		}
 		ttAccountSlice = append(ttAccountSlice, ttAccount)
 	}
 	target.Account = ttAccountSlice
-	ttProfile, mapProfileErr := qjchbgbmcn(src.Profile)
+	ttProfile, mapProfileErr := guclbondhb(src.Profile)
 	if mapProfileErr != nil {
 		return domain.Person{}, fmt.Errorf("error mapping from 'Profile.Profile' to 'Profile.Profile': %w", mapProfileErr)
 	}
@@ -120,9 +122,9 @@ func MapPersonToDomain(src dto.Person) (domain.Person, error) {
 	target.Projects = src.Projects
 	return target, nil
 }
-func bppcvhnjmt(src external.Account) (external.Account, error) {
+func dfgbeupfeu(src external.Account) (external.Account, error) {
 	target := external.Account{}
-	ttLogin, mapLoginErr := zapuwbyhla(src.Login)
+	ttLogin, mapLoginErr := fptlapjksh(src.Login)
 	if mapLoginErr != nil {
 		return external.Account{}, fmt.Errorf("error mapping from 'Login.Login' to 'Login.Login': %w", mapLoginErr)
 	}
@@ -130,12 +132,12 @@ func bppcvhnjmt(src external.Account) (external.Account, error) {
 	target.Password = src.Password
 	return target, nil
 }
-func zapuwbyhla(src user.Login) (user.Login, error) {
+func fptlapjksh(src user.Login) (user.Login, error) {
 	target := user.Login{}
 	target.Value = src.Value
 	return target, nil
 }
-func qjchbgbmcn(src dto.Profile) (domain.Profile, error) {
+func guclbondhb(src dto.Profile) (domain.Profile, error) {
 	target := domain.Profile{}
 	target.Number = src.Phone
 	return target, nil

@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"fmt"
 	"log"
 
 	//lint:ignore ST1001 it's ok
@@ -9,22 +10,25 @@ import (
 )
 
 func sliceToSlice(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
-	sslice, ok := src.Type().(mapp.SliceType)
+	srcSlc, ok := src.Type().(mapp.SliceType)
 	if !ok {
 		panic("is not a slice")
 	}
 
-	tslice, ok := tt.Type().(mapp.SliceType)
+	ttSlc, ok := tt.Type().(mapp.SliceType)
 	if !ok {
 		panic("is not a slice")
 	}
 
 	switch {
-	case sslice.Elem().TypeFamily() == mapp.FieldTypeBasic &&
-		tslice.Elem().TypeFamily() == mapp.FieldTypeBasic:
+	case srcSlc.Elem().TypeFamily() == mapp.FieldTypeNamed &&
+		ttSlc.Elem().TypeFamily() == mapp.FieldTypeNamed:
+		namedToNamed(g, src, tt, opts...)
+	case srcSlc.Elem().TypeFamily() == mapp.FieldTypeBasic &&
+		ttSlc.Elem().TypeFamily() == mapp.FieldTypeBasic:
 		basicToBasic(g, src, tt, opts...)
-	case sslice.Elem().TypeFamily() == mapp.FieldTypeStruct &&
-		tslice.Elem().TypeFamily() == mapp.FieldTypeStruct:
+	case srcSlc.Elem().TypeFamily() == mapp.FieldTypeStruct &&
+		ttSlc.Elem().TypeFamily() == mapp.FieldTypeStruct:
 		gp := gParams(opts...)
 
 		hash := fieldsHash(src, tt)
@@ -77,6 +81,8 @@ func sliceToSlice(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
 				log.Fatalf("Error generate mapper '%s': %v", submapperName, err)
 			}
 		}
+	default:
+		panic(fmt.Sprintf("unsupported case: src '%s' tt '%s'", srcSlc.Elem().TypeFamily(), ttSlc.Elem().TypeFamily()))
 	}
 
 	return nil
