@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"time"
 
+	//lint:ignore ST1001 it's ok
 	. "github.com/dave/jennifer/jen"
 	"github.com/samber/lo"
 	"github.com/udisondev/go-mapp/mapp"
