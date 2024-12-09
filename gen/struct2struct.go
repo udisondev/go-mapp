@@ -1,73 +1,57 @@
 package gen
 
 import (
-	"fmt"
+	"log"
 
 	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func structToStruct(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
-	genParam := genParams{}
+func structToStruct(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
+	gp := gParams(opts...)
 
-	returns := []Code{}
-	for _, fn := range opts {
-		genParam = fn(genParam)
-	}
-
-	hash := fieldsHash(s, t)
-	submapperName, submapperExists := bl.submappers[hash]
+	hash := fieldsHash(src, tt)
+	submapperName, submapperExists := gp.submappers[hash]
 	if !submapperExists {
 		submapperName = genRandomName(10)
-		bl.submappers[hash] = submapperName
+		gp.submappers[hash] = submapperName
 	}
-	
-	errVar := "map" + t.Name() + "Err"
-	resVar := "target" + t.Name()
-	var srcVar Code
-	if genParam.srcIsPointer {
-		srcVar = Add(Op("*")).Id("src").Dot(s.Name())
-	} else {
-		srcVar = Id("src").Dot(s.Name())
-	}
-	bl.List(Id(resVar), Id(errVar)).Op(":=").Id(submapperName).Call(srcVar)
-	bl.If(Id(errVar)).Op("!=").Nil().BlockFunc(func(g *Group) {
-		withErr := bl.mapper.WithError()
-		if !withErr {
-			g.Panic(Qual("fmt", "Sprintf").Call(Lit(fmt.Sprintf("error map '%s%s'", bl.mapper.Target().TypeName(), t.FullName())+": %v"), Id(errVar).Dot("Error").Call()))
-			return
+
+	assign(g).
+		new(ttVar(tt.Name())).
+		new(mapErrName(tt.Name())).
+		from(func(stm *Statement) { methodSource(stm, submapperName, srcFldName(src.Name()), opts...) })
+	opts = append(opts, srcIsPtr(false))
+	ifErrNotNil(g, mapErrName(tt.Name()), func(g *Group) {
+		switch {
+		case gp.withErr:
+			retrn(g).
+				emptyStruct(gp.ttPath, gp.ttType).
+				defErr(src, tt, mapErrName(tt.Name())).
+				build()
+		default:
+			defPanic(g, src, tt, mapErrName(tt.Name()))
 		}
 
-		if bl.mapperFunc.isRoot {
-			returns = append(returns, Qual(bl.mapper.Target().Path(), bl.mapper.Target().TypeName()).Block())
-			if withErr {
-				returns = append(returns, Id(errVar))
-			}
-		} else {
-			returns = append(returns, Qual(bl.mapperFunc.target.Type().Path(), bl.mapperFunc.target.Type().TypeName()))
-			returns = append(returns, Id(errVar))
-		}
-
-		g.Return(returns...)
 	})
 
-	bl.Id("target").Dot(t.Name()).Op("=").Id(resVar)
+	assign(g).toTarget(tt.Name(), func(stm *Statement) { basicSource(stm, ttVar(tt.Name()), opts...) })
 
 	if !submapperExists {
-		mfn := mapperFunc{
-			generatedFn:        bl.file.Func().Id(submapperName),
-			mapper:             bl.mapper,
-			file:               bl.mapperFunc.file,
-			source:             s,
-			target:             t,
-			submappers:         bl.submappers,
-			fieldMapGenerators: bl.fieldMapGenerators,
-		}
-		bl.file.Line()
-		mfn.generateSignature()
-		err := mfn.generateBlock()
+		opts = append(opts,
+			sourcePath(src.Type().Path()),
+			sourceType(src.Type().TypeName()),
+			targetPath(tt.Type().Path()),
+			targetType(tt.Type().TypeName()),
+			ttFields(tt.Fields()),
+			withErr(true),
+		)
+		err := generateMapper(
+			submapperName,
+			opts...,
+		)
 		if err != nil {
-			return err
+			log.Fatalf("Error generate mapper '%s': %v", submapperName, err)
 		}
 	}
 

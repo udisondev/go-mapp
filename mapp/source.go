@@ -14,6 +14,15 @@ func (s Source) Fields() []Field {
 	return extractFieldsFromStruct(".", s.p.Path(), name)
 }
 
+func (s Source) Path() string {
+	return s.p.Path()
+}
+
+func (s Source) TypeName() string {
+	_, typeName := s.p.Type()
+	return typeName
+}
+
 func (s Source) FieldByFullName(fullName string) (Field, bool) {
 	fields := s.Fields()
 	for _, f := range fields {	

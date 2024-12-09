@@ -1,19 +1,14 @@
 package gen
 
 import (
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func pointerToStruct(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error{
-	bl.If(
-		jen.Id("src").Dot(s.Name()).Op("!=").Nil(),
-	).BlockFunc(
-		func(g *jen.Group) {
-			bl.Group = g
-			structToStruct(bl, s, t, withSrcIsPointer())
-		},
-	)
-	
+func pointerToStruct(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
+	ifSrcNotNil(g, src.Name(), func(g *Group) {
+		structToStruct(g, src, tt, append(opts, srcIsPtr(true), ttIsPtr(false))...)
+	})
+
 	return nil
 }

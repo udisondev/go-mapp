@@ -37,95 +37,106 @@ func MapPersonTypeToDomain(pt dto.PersonType) (domain.PersonType, error) {
 
 func MapPersonToDTO(src domain.Person) dto.Person {
 	target := dto.Person{}
-
 	if src.Firstname != nil {
 		target.FirstName = *src.Firstname
 	}
 	target.LastName = src.LastName
 	target.MiddleName = &src.MiddleName
-	targetMainAccount, mapMainAccounterr := pzocepuefb(src.MainAccount)
-	if mapMainAccounterr != nil {
-		panic(fmt.Sprintf("error map 'Person.MainAccount': %v", mapMainAccounterr.Error()))
+	ttMainAccount, mapMainAccountErr := elwjgofsbw(src.MainAccount)
+	if mapMainAccountErr != nil {
+		panic(fmt.Sprintf("error mapping from 'Account.MainAccount' to 'Account.MainAccount': %v", mapMainAccountErr.Error()))
 	}
-	target.MainAccount = targetMainAccount
-	targetAccountSlice := make([]external.Account, 0, len(src.Account))
+	target.MainAccount = ttMainAccount
+	ttAccountSlice := make([]external.Account, 0, len(src.Account))
 	for _, it := range src.Account {
-		targetAccount, mapAccounterr := pzocepuefb(it)
-		if mapAccounterr != nil {
-			return dto.Person{}
+		ttAccount, mapAccountErr := elwjgofsbw(it)
+		if mapAccountErr != nil {
+			panic(fmt.Sprintf("error mapping from 'Account.Account' to 'Account.Account': %v", mapAccountErr.Error()))
 		}
-		targetAccountSlice = append(targetAccountSlice, targetAccount)
+		ttAccountSlice = append(ttAccountSlice, ttAccount)
 	}
-	target.Account = targetAccountSlice
+	target.Account = ttAccountSlice
 	if src.Profile != nil {
-		targetProfile, mapProfileerr := toochgbyhc(*src.Profile)
-		if mapProfileerr != nil {
-			panic(fmt.Sprintf("error map 'Person.Profile': %v", mapProfileerr.Error()))
+		ttProfile, mapProfileErr := gghddiiwue(*src.Profile)
+		if mapProfileErr != nil {
+			panic(fmt.Sprintf("error mapping from 'Profile.Profile' to 'Profile.Profile': %v", mapProfileErr.Error()))
 		}
-		target.Profile = targetProfile
+		target.Profile = ttProfile
 	}
-	enmType, mapTypeErr := MapPersonTypeToDto(src.Type)
+	ttType, mapTypeErr := MapPersonTypeToDto(src.Type)
 	if mapTypeErr != nil {
-		panic(fmt.Sprintf("error map 'Person.Type': %v", mapTypeErr.Error()))
+		panic(fmt.Sprintf("error mapping from 'PersonType.Type' to 'PersonType.Type': %v", mapTypeErr.Error()))
 	}
-	target.Type = enmType
+	target.Type = ttType
 	target.Projects = src.Projects
-
 	return target
 }
-
-func pzocepuefb(src external.Account) (external.Account, error) {
+func elwjgofsbw(src external.Account) (external.Account, error) {
 	target := external.Account{}
-
-	targetLogin, mapLoginerr := ftsteirahj(src.Login)
-	if mapLoginerr != nil {
-		panic(fmt.Sprintf("error map 'Person.MainAccount.Login': %v", mapLoginerr.Error()))
+	ttLogin, mapLoginErr := uzugzuxxuq(src.Login)
+	if mapLoginErr != nil {
+		return external.Account{}, fmt.Errorf("error mapping from 'Login.Login' to 'Login.Login': %w", mapLoginErr)
 	}
-	target.Login = targetLogin
+	target.Login = ttLogin
 	target.Password = src.Password
-
 	return target, nil
 }
-
-func ftsteirahj(src user.Login) (user.Login, error) {
+func uzugzuxxuq(src user.Login) (user.Login, error) {
 	target := user.Login{}
-
 	target.Value = src.Value
-
 	return target, nil
 }
-
-func toochgbyhc(src domain.Profile) (dto.Profile, error) {
+func gghddiiwue(src domain.Profile) (dto.Profile, error) {
 	target := dto.Profile{}
-
 	target.Phone = src.Number
-
 	return target, nil
 }
-
 func MapPersonToDomain(src dto.Person) (domain.Person, error) {
 	target := domain.Person{}
-
 	target.Firstname = &src.FirstName
 	target.LastName = src.LastName
 	if src.MiddleName != nil {
 		target.MiddleName = *src.MiddleName
 	}
-	targetAccountSlice := make([]external.Account, 0, len(src.Account))
+	ttAccountSlice := make([]external.Account, 0, len(src.Account))
 	for _, it := range src.Account {
-		targetAccount, mapAccounterr := pzocepuefb(it)
-		if mapAccounterr != nil {
-			return domain.Person{}, mapAccounterr
+		ttAccount, mapAccountErr := bppcvhnjmt(it)
+		if mapAccountErr != nil {
+			return domain.Person{}, fmt.Errorf("error mapping from 'Account.Account' to 'Account.Account': %w", mapAccountErr)
 		}
-		targetAccountSlice = append(targetAccountSlice, targetAccount)
+		ttAccountSlice = append(ttAccountSlice, ttAccount)
 	}
-	target.Account = targetAccountSlice
-	enmType, mapTypeErr := MapPersonTypeToDomain(src.Type)
+	target.Account = ttAccountSlice
+	ttProfile, mapProfileErr := qjchbgbmcn(src.Profile)
+	if mapProfileErr != nil {
+		return domain.Person{}, fmt.Errorf("error mapping from 'Profile.Profile' to 'Profile.Profile': %w", mapProfileErr)
+	}
+	target.Profile = &ttProfile
+	ttType, mapTypeErr := MapPersonTypeToDomain(src.Type)
 	if mapTypeErr != nil {
-		return domain.Person{}, mapTypeErr
+		return domain.Person{}, fmt.Errorf("error mapping from 'PersonType.Type' to 'PersonType.Type': %w", mapTypeErr)
 	}
-	target.Type = enmType
+	target.Type = ttType
 	target.Projects = src.Projects
-
+	return target, nil
+}
+func bppcvhnjmt(src external.Account) (external.Account, error) {
+	target := external.Account{}
+	ttLogin, mapLoginErr := zapuwbyhla(src.Login)
+	if mapLoginErr != nil {
+		return external.Account{}, fmt.Errorf("error mapping from 'Login.Login' to 'Login.Login': %w", mapLoginErr)
+	}
+	target.Login = ttLogin
+	target.Password = src.Password
+	return target, nil
+}
+func zapuwbyhla(src user.Login) (user.Login, error) {
+	target := user.Login{}
+	target.Value = src.Value
+	return target, nil
+}
+func qjchbgbmcn(src dto.Profile) (domain.Profile, error) {
+	target := domain.Profile{}
+	target.Number = src.Phone
 	return target, nil
 }

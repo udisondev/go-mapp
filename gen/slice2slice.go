@@ -1,18 +1,19 @@
 package gen
 
 import (
+	"log"
+
 	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
-func sliceToSlice(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
-	gParams := gParams(opts...)
-	sslice, ok := s.Type().(mapp.SliceType)
+func sliceToSlice(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
+	sslice, ok := src.Type().(mapp.SliceType)
 	if !ok {
 		panic("is not a slice")
 	}
 
-	tslice, ok := t.Type().(mapp.SliceType)
+	tslice, ok := tt.Type().(mapp.SliceType)
 	if !ok {
 		panic("is not a slice")
 	}
@@ -20,47 +21,59 @@ func sliceToSlice(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
 	switch {
 	case sslice.Elem().TypeFamily() == mapp.FieldTypeBasic &&
 		tslice.Elem().TypeFamily() == mapp.FieldTypeBasic:
-		basicToBasic(bl, s, t)
+		basicToBasic(g, src, tt, opts...)
 	case sslice.Elem().TypeFamily() == mapp.FieldTypeStruct &&
 		tslice.Elem().TypeFamily() == mapp.FieldTypeStruct:
-		hash := fieldsHash(s, t)
-		submapperName, submapperExists := bl.submappers[hash]
+		gp := gParams(opts...)
+
+		hash := fieldsHash(src, tt)
+		submapperName, submapperExists := gp.submappers[hash]
 		if !submapperExists {
 			submapperName = genRandomName(10)
-			bl.submappers[hash] = submapperName
+			gp.submappers[hash] = submapperName
 		}
 
-		assign(bl.Group).
-			to(targetSliceName(t.Name())).
-			from(func(stm *Statement) { makeSlice(stm, t.Type().Path(), t.Type().TypeName(), t.Name()) })
+		assign(g).
+			new(ttSliceVar(tt.Name())).
+			from(func(stm *Statement) { makeSlice(stm, tt.Type().Path(), tt.Type().TypeName(), tt.Name()) })
 
-		forr(bl.Group).put("_").put("it").rangForSlice(s.Name())(func(g *Group) {
+		forr(g).put("_").put("it").rangForSlice(src.Name())(func(g *Group) {
 			assign(g).
-				to(targetFieldName(t.Name())).
-				to(mapErrName(t.Name())).
+				new(ttVar(tt.Name())).
+				new(mapErrName(tt.Name())).
 				from(func(stm *Statement) { methodSource(stm, submapperName, "it") })
-			ifErrNotNil(g, mapErrName(t.Name()), func(g *Group) {
-				ret(g).
-					DefaultVal(gParams.strPath, gParams.strType).
-					Err(mapErrName(t.Name())).build()
+			ifErrNotNil(g, mapErrName(tt.Name()), func(g *Group) {
+				switch {
+				case gp.withErr:
+					retrn(g).
+						emptyStruct(gp.ttPath, gp.ttType).
+						defErr(src, tt, mapErrName(tt.Name())).
+						build()
+				default:
+					defPanic(g, src, tt, mapErrName(tt.Name()))
+				}
+
 			})
+			appnd(g, ttSliceVar(tt.Name()), ttVar(tt.Name()))
 		})
 
+		assign(g).toTarget(tt.Name(), func(stm *Statement) { basicSource(stm, ttSliceVar(tt.Name())) })
+
 		if !submapperExists {
-			mfn := mapperFunc{
-				generatedFn:        bl.file.Func().Id(submapperName),
-				mapper:             bl.mapper,
-				file:               bl.mapperFunc.file,
-				source:             s,
-				target:             t,
-				submappers:         bl.submappers,
-				fieldMapGenerators: bl.fieldMapGenerators,
-			}
-			bl.file.Line()
-			mfn.generateSignature()
-			err := mfn.generateBlock()
+			opts = append(opts,
+				sourcePath(src.Type().Path()),
+				sourceType(src.Type().TypeName()),
+				targetPath(tt.Type().Path()),
+				targetType(tt.Type().TypeName()),
+				ttFields(tt.Fields()),
+				withErr(true),
+			)
+			err := generateMapper(
+				submapperName,
+				opts...,
+			)
 			if err != nil {
-				return err
+				log.Fatalf("Error generate mapper '%s': %v", submapperName, err)
 			}
 		}
 	}

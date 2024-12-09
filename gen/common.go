@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"time"
 
@@ -41,45 +42,86 @@ func enumHash(f mapp.Enum) string {
 	return f.Path() + "." + typeName
 }
 
-func panicWithCause(g *Group, msg, errName string) {
-	g.Panic(Qual("fmt", "Sprintf").Call(Lit(msg+": %v"), Id(errName).Dot("Error").Call()))
+func defErrWrapMsg(src, tt mapp.Field) string {
+	return fmt.Sprintf(
+		"error mapping from '%s.%s' to '%s.%s'",
+		src.Type().TypeName(),
+		src.Name(),
+		tt.Type().TypeName(),
+		tt.Name())
 }
 
-func assignToTarget(g *Group, fname string, fn func(*Statement)) {
-	fn(g.Id("target").Dot(fname).Op("="))
-}
-
-func assignTo(g *Group, fn func(*Statement), names ...string) {
-	fn(g.List(lo.Map(names, func(it string, _ int) Code { return Id(it) })...).Op(":="))
+func defPanic(g *Group, src, tt mapp.Field, errName string) {
+	g.Panic(Qual("fmt", "Sprintf").Call(Lit(defErrWrapMsg(src, tt)+": %v"), Id(errName).Dot("Error").Call()))
 }
 
 type AssignOpt struct {
-	list []string
-	g    *Group
+	isNew bool
+	list  []string
+	g     *Group
 }
 
 func assign(g *Group) AssignOpt {
 	return AssignOpt{g: g}
 }
 
-func (a AssignOpt) to(n string) AssignOpt {
+func appnd(g *Group, sliceName, val string) {
+	g.Id(sliceName).Op("=").Append(Id(sliceName), Id(val))
+}
+
+func (a AssignOpt) emptyStruct(path, typeName string) {
+	a.g.Id(a.list[0]).Op(a.op()).Qual(path, typeName).Block()
+}
+
+func (a AssignOpt) op() string {
+	if a.isNew {
+		return ":="
+	}
+	return "="
+}
+
+func (a AssignOpt) new(n string) AssignOpt {
+	a.isNew = true
 	a.list = append(a.list, n)
 	return a
 }
 
+func (a AssignOpt) toTarget(ttName string, fn func(*Statement)) {
+	fn(a.g.Id(ttFldName(ttName)).Op("="))
+}
+
+func ttFldName(ttName string) string {
+	return "target." + ttName
+}
+
+func srcFldName(ttName string) string {
+	return "src." + ttName
+}
+
 func (a AssignOpt) from(fn func(*Statement)) {
-	fn(a.g.List(lo.Map(a.list, func(it string, _ int) Code { return Id(it) })...).Op(":="))
+	fn(a.g.List(lo.Map(a.list, func(it string, _ int) Code { return Id(it) })...).Op(a.op()))
 }
 
-func basicSource(trgt *Statement, sourceName string) {
-	trgt.Id(sourceName)
+func basicSource(stm *Statement, srcName string, opts ...genOptFunc) {
+	if gParams(opts...).srcIsPtr {
+		stm.Add(Op("*"))
+	}
+	if gParams(opts...).ttIsPtr {
+		stm.Add(Op("&"))
+	}
+	stm.Id(srcName)
 }
 
-func methodSource(trgt *Statement, methodName, sname string) {
-	trgt.Id(methodName).Call(Id("src").Dot(sname))
+func methodSource(tt *Statement, methodName, srcName string, opts ...genOptFunc) {
+	gp := gParams(opts...)
+	fldName := "*" + srcName
+	if !gp.srcIsPtr {
+		fldName = srcName
+	}
+	tt.Id(methodName).Call(Id(fldName))
 }
 
-func gParams(opts ...genOpts) genParams {
+func gParams(opts ...genOptFunc) genParams {
 	genParams := genParams{}
 	for _, opt := range opts {
 		genParams = opt(genParams)
@@ -91,11 +133,15 @@ func ifErrNotNil(g *Group, errName string, fn func(g *Group)) {
 	g.If(Id(errName).Op("!=").Nil()).BlockFunc(fn)
 }
 
-func makeSlice(fn *Statement, typePath, typeName, fieldName string) {
-	Make(
+func ifSrcNotNil(g *Group, fname string, fn func(g *Group)) {
+	g.If(Id(srcFldName(fname)).Op("!=").Nil()).BlockFunc(fn)
+}
+
+func makeSlice(stm *Statement, typePath, typeName, fldname string) {
+	stm.Make(
 		Index().Qual(typePath, typeName),
 		Lit(0),
-		Len(Id("src").Dot(fieldName)))
+		Len(Id("src").Dot(fldname)))
 }
 
 type forOpts struct {
@@ -115,58 +161,98 @@ func (f forOpts) put(v string) forOpts {
 func (f forOpts) rangForSlice(slcName string) func(fn func(*Group)) {
 	return func(fn func(g *Group)) {
 		f.g.For(List(lo.Map(f.vars, func(it string, _ int) Code { return Id(it) })...)).
+			Op(":=").
 			Range().Id("src").Dot(slcName).
 			BlockFunc(fn)
 	}
 }
 
 type ReturnOpts struct {
-	pts     []struct{ path, typeName string }
-	errName string
-	g       *Group
+	pathTypes []struct {
+		isEmpty        bool
+		path, typeName string
+	}
+	errWrapMsg string
+	errName    string
+	g          *Group
 }
 
-func ret(g *Group) ReturnOpts {
+func retrn(g *Group) ReturnOpts {
 	return ReturnOpts{g: g}
 }
 
-func (r ReturnOpts) DefaultVal(path, typeName string) ReturnOpts {
-	r.pts = append(r.pts, struct {
+func (r ReturnOpts) emptyStruct(path, typeName string) ReturnOpts {
+	r.pathTypes = append(r.pathTypes, struct {
+		isEmpty  bool
 		path     string
 		typeName string
-	}{path, typeName})
+	}{true, path, typeName})
 	return r
 }
 
-func (r ReturnOpts) Err(errName string) ReturnOpts {
+func (r ReturnOpts) defErr(src, tt mapp.Field, errName string) ReturnOpts {
 	r.errName = errName
+	r.errWrapMsg = defErrWrapMsg(src, tt)
 	return r
+}
+
+func (r ReturnOpts) Val(name string) ReturnOpts {
+	r.pathTypes = append(r.pathTypes, struct {
+		isEmpty  bool
+		path     string
+		typeName string
+	}{false, "", name})
+	return r
+}
+
+func (r ReturnOpts) Nil() {
+	r.g.Return(
+		append(
+			lo.Map(r.pathTypes, func(it struct {
+				isEmpty        bool
+				path, typeName string
+			}, _ int) Code {
+				ret := Qual(it.path, it.typeName)
+				if it.isEmpty {
+					ret.Block()
+				}
+
+				return ret
+			}),
+			Nil(),
+		)...)
 }
 
 func (r ReturnOpts) build() {
-	r.g.Return(lo.Map(r.pts, func(it struct{ path, typeName string }, _ int) Code { return Qual(it.path, it.typeName) })...)
-}
+	returns := lo.Map(r.pathTypes, func(it struct {
+		isEmpty        bool
+		path, typeName string
+	}, _ int) Code {
+		ret := Qual(it.path, it.typeName)
+		if it.isEmpty {
+			ret.Block()
+		}
 
-func returnMapResult(g *Group, path, typeName, errName string, opts ...genOpts) {
-	genParams := gParams(opts...)
-	returns := []Code{Qual(path, typeName).Block()}
+		return ret
+	})
+
 	switch {
-	case genParams.withErr:
-		returns = append(returns, Id(errName))
-		g.Return(returns...)
-	case genParams.withPanic:
-		panicWithCause(g, genParams.panicMsg, errName)
+	case r.errName != "" && r.errWrapMsg != "":
+		returns = append(returns, Qual("fmt", "Errorf").Call(Lit(r.errWrapMsg+": %w"), Id(r.errName)))
+	case r.errName != "":
+		returns = append(returns, Id(r.errName))
 	}
+	r.g.Return(returns...)
 }
 
 func mapErrName(fieldName string) string {
 	return "map" + fieldName + "Err"
 }
 
-func targetSliceName(fieldName string) string {
+func ttSliceVar(fieldName string) string {
 	return "tt" + fieldName + "Slice"
 }
 
-func targetFieldName(fieldName string) string {
+func ttVar(fieldName string) string {
 	return "tt" + fieldName
 }

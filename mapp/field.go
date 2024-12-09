@@ -67,6 +67,19 @@ func (f Field) Fields() []Field {
 		splitedType := strings.Split(f.spec.Origin().Type().String(), ".")
 		name := splitedType[len(splitedType)-1]
 		return extractFieldsFromStruct(f.FullName()+".", typePath, name)
+	case *types.Slice:
+		switch slst := ft.Elem().(type) {
+		case *types.Named:
+			_, isStruct := slst.Underlying().(*types.Struct)
+			if !isStruct {
+				return nil
+			}
+
+			typePath := slst.Obj().Pkg().Path()
+			return extractFieldsFromStruct(f.FullName()+".", typePath, slst.Obj().Name())
+		case *types.Struct:
+			extractFieldsFromStruct(f.FullName(), f.spec.Pkg().Path(), f.spec.Type().String())
+		}
 	case *types.Pointer:
 		switch pt := ft.Elem().(type) {
 		case *types.Named:

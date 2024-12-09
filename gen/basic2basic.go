@@ -1,9 +1,14 @@
 package gen
 
-import "github.com/udisondev/go-mapp/mapp"
+import (
+	. "github.com/dave/jennifer/jen"
+	"github.com/udisondev/go-mapp/mapp"
+)
 
-func basicToBasic(bl mapperBlock, s, t mapp.Field, opts ...genOpts) error {
-	bl.Id("target").Dot(t.Name()).Op("=").Id("src").Dot(s.Name())
+func basicToBasic(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
+	assign(g).toTarget(tt.Name(), func(stm *Statement) {
+		basicSource(stm, srcFldName(src.Name()))
+	})
 
 	return nil
 }
