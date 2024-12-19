@@ -35,7 +35,7 @@ func fieldsHash(fs ...mapp.Field) string {
 }
 
 func fieldHash(f mapp.Field) string {
-	return f.Type().Path() + "." + f.Type().TypeName()
+	return f.Path() + "." + f.TypeName()
 }
 
 func enumHash(f mapp.Enum) string {
@@ -46,9 +46,9 @@ func enumHash(f mapp.Enum) string {
 func defErrWrapMsg(src, tt mapp.Field) string {
 	return fmt.Sprintf(
 		"error mapping from '%s.%s' to '%s.%s'",
-		src.Type().TypeName(),
+		src.TypeName(),
 		src.Name(),
-		tt.Type().TypeName(),
+		tt.TypeName(),
 		tt.Name())
 }
 

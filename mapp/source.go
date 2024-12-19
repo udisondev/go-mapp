@@ -2,34 +2,57 @@ package mapp
 
 import (
 	"go/ast"
+	"go/token"
+	"go/types"
+
+	"golang.org/x/tools/go/packages"
 )
 
 type Source struct {
 	spec *ast.Field
-	p Param
+	pkg  *packages.Package
+	p    Param
 }
 
-func (s Source) Fields() []Field {
+func (s *Source) Fields() []Mappable {
 	_, name := s.p.Type()
-	return extractFieldsFromStruct(".", s.p.Path(), name)
+	return extractFieldsFromStruct("", s.p.Path(), name)
 }
 
-func (s Source) Path() string {
+func (s *Source) Path() string {
 	return s.p.Path()
 }
 
-func (s Source) TypeName() string {
+func (s *Source) TypeName() string {
 	_, typeName := s.p.Type()
 	return typeName
 }
 
-func (s Source) FieldByFullName(fullName string) (Field, bool) {
-	fields := s.Fields()
-	for _, f := range fields {	
-		expF, found := deepFieldSearch(f, fullName)
-		if found {
-			return expF, found
+func (s *Source) Name() string {
+	return s.p.Name()
+}
+
+func (s *Source) FullName() string {
+	return s.p.Name()
+}
+
+func (s *Source) Type() types.Type {
+	if s.pkg == nil {
+		cfg := &packages.Config{
+			Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
+			Fset: token.NewFileSet(),
 		}
+		pkgs, err := packages.Load(cfg, s.Path())
+		if err != nil {
+			panic(err)
+		}
+		s.pkg = pkgs[0]
 	}
-	return Field{}, false
+
+	obj := s.pkg.Types.Scope().Lookup(s.TypeName())
+	return obj.Type()
+}
+
+func (s *Source) DeepType() func() (types.Type, bool) {
+	return func() (types.Type, bool) { return s.Type(), true }
 }

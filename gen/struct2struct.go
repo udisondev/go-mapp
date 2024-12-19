@@ -40,10 +40,10 @@ func structToStruct(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
 
 	if !submapperExists {
 		opts = append(opts,
-			sourcePath(src.Type().Path()),
-			sourceType(src.Type().TypeName()),
-			targetPath(tt.Type().Path()),
-			targetType(tt.Type().TypeName()),
+			sourcePath(src.Path()),
+			sourceType(src.TypeName()),
+			targetPath(tt.Path()),
+			targetType(tt.TypeName()),
 			ttFields(tt.Fields()),
 			withErr(true),
 		)

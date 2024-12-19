@@ -2,9 +2,10 @@
 package mapp
 
 import (
-	"fmt"
+	// "fmt"
 	"go/types"
 	"strings"
+	"unicode"
 )
 
 // TypeFamily ENUM(basic, named, struct, pointer, slice)
@@ -15,6 +16,8 @@ type TypedField interface {
 	Path() string
 	TypeName() string
 }
+
+const stdlib = "stdlib"
 
 func extractType(s string) string {
 	toReturn := s
@@ -37,88 +40,117 @@ type Field struct {
 
 func New(spec *types.Var,
 	owner *types.Struct,
-	fieldPath string) Field {
-	return Field{
+	fieldPath string) Mappable {
+	return &Field{
 		spec:      spec,
 		owner:     owner,
 		fieldPath: fieldPath,
 	}
 }
 
-func (f Field) Name() string {
+func (f *Field) Name() string {
 	return f.spec.Origin().Name()
 }
 
-func (f Field) FullName() string {
-	return f.fieldPath + f.Name()
-}
-
-func (f Field) Fields() []Field {
-	switch ft := f.spec.Type().(type) {
-	case *types.Basic:
-		return nil
-	case *types.Named:
-		_, isStruct := ft.Underlying().(*types.Struct)
-		if !isStruct {
-			return nil
-		}
-
-		typePath := ft.Obj().Pkg().Path()
-		splitedType := strings.Split(f.spec.Origin().Type().String(), ".")
-		name := splitedType[len(splitedType)-1]
-		return extractFieldsFromStruct(f.FullName()+".", typePath, name)
-	case *types.Slice:
-		switch slst := ft.Elem().(type) {
-		case *types.Named:
-			_, isStruct := slst.Underlying().(*types.Struct)
-			if !isStruct {
-				return nil
-			}
-
-			typePath := slst.Obj().Pkg().Path()
-			return extractFieldsFromStruct(f.FullName()+".", typePath, slst.Obj().Name())
-		case *types.Struct:
-			extractFieldsFromStruct(f.FullName(), f.spec.Pkg().Path(), f.spec.Type().String())
-		}
-	case *types.Pointer:
-		switch pt := ft.Elem().(type) {
-		case *types.Named:
-			_, isStruct := pt.Underlying().(*types.Struct)
-			if !isStruct {
-				return nil
-			}
-
-			typePath := pt.Obj().Pkg().Path()
-			return extractFieldsFromStruct(f.FullName()+".", typePath, pt.Obj().Name())
-		case *types.Struct:
-			extractFieldsFromStruct(f.FullName(), f.spec.Pkg().Path(), f.spec.Type().String())
+// Path implements Mappable.
+func (f *Field) Path() string {
+	typeString := f.spec.Type().String()
+	startTypeNamePos := strings.LastIndex(typeString, ".")
+	if startTypeNamePos < 0 {
+		return stdlib
+	}
+	subString := f.spec.Type().String()[:startTypeNamePos]
+	for i, r := range subString {
+		if unicode.IsLetter(r) {
+			return subString[i:]
 		}
 	}
-
-	return nil
+	return subString
 }
 
-func (f Field) Type() TypedField {
-	return f.resolveType(f.spec.Type())
-}
-
-func (f Field) resolveType(t types.Type) TypedField {
-	switch ft := t.(type) {
-	case *types.Basic:
-		return BasicType{Basic: ft, f: f}
-	case *types.Named:
-		strt, isStruct := ft.Underlying().(*types.Struct)
-		if isStruct {
-			return StructType{Struct: strt, f: f}
+// TypeName implements Mappable.
+func (f *Field) TypeName() string {
+	var subType string
+	for i, r := range f.spec.Type().String() {
+		if !unicode.IsLetter(r) {
+			subType = f.spec.Type().String()[i:]
+			break
 		}
-		return NamedType{Named: ft, f: f}
-	case *types.Struct:
-		return StructType{Struct: ft, f: f}
-	case *types.Pointer:
-		return PointerType{Pointer: ft, f: f}
-	case *types.Slice:
-		return SliceType{Slice: ft, f: f}
+	}
+	startTypeNamePos := strings.LastIndex(subType, ".")
+	if startTypeNamePos < 0 {
+		return subType
+	}
+
+	return subType[startTypeNamePos+1:]
+}
+
+// Underlying implements Mappable.
+func (f *Field) DeepType() func() (types.Type, bool) {
+	level := -1
+	currentType := f.Type()
+	return func() (types.Type, bool) {
+		level++
+		if level == 0 {
+			currentType = under(currentType)
+			return f.Type(), isButtom(f.Type())
+		}
+
+		if isButtom(currentType) {
+			return currentType, true
+		}
+
+		defer func() { currentType = under(currentType) }()
+
+		return currentType, false
+	}
+}
+
+func (f *Field) FullName() string {
+	return f.fieldPath + "." + f.Name()
+}
+
+func (f *Field) Fields() []Mappable {
+	deepTypeFn := f.DeepType()
+	ft, bottom := deepTypeFn()
+	for !bottom {
+		ft, bottom = deepTypeFn()
+	}
+
+	_, ok := ft.(*types.Struct)
+	if !ok {
+		return nil
+	}
+	
+	return extractFieldsFromStruct(f.FullName(), f.Path(), f.TypeName())
+}
+
+func (f *Field) Type() types.Type {
+	return f.spec.Type()
+}
+
+func isButtom(t types.Type) bool {
+	switch t.(type) {
+	case *types.Basic, *types.Struct:
+		return true
 	default:
-		panic(fmt.Sprintf("unsupported field type: %T", t))
+		return false
+	}
+}
+
+func under(t types.Type) types.Type {
+	switch currentType := t.(type) {
+	case *types.Pointer:
+		return currentType.Elem()
+	case *types.Named:
+		return currentType.Underlying()
+	case *types.Slice:
+		return currentType.Elem()
+	case *types.Map:
+		return currentType.Elem()
+	case *types.Array:
+		return currentType.Elem()
+	default:
+		return t
 	}
 }

@@ -32,5 +32,5 @@ func (s SliceType) TypeName() string {
 }
 
 func (s SliceType) Elem() TypedField {
-	return s.f.resolveType(s.Slice.Elem())
+	return nil
 }

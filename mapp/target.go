@@ -2,35 +2,57 @@ package mapp
 
 import (
 	"go/ast"
+	"go/token"
+	"go/types"
+
+	"golang.org/x/tools/go/packages"
 )
 
 type Target struct {
 	spec *ast.Field
+	pkg  *packages.Package
 	r    Result
 }
 
-func (t Target) Name() string {
-	name := t.r.Name()
-	if name != "" {
-		return name
-	}
-	return "t"
+func (s *Target) Fields() []Mappable {
+	_, name := s.r.Type()
+	return extractFieldsFromStruct("", s.r.Path(), name)
 }
 
-func (t Target) TypeName() string {
-	_, typeName := t.r.Type()
+func (s *Target) Path() string {
+	return s.r.Path()
+}
+
+func (s *Target) TypeName() string {
+	_, typeName := s.r.Type()
 	return typeName
 }
 
-func (t Target) Fields() []Field {
-	_, name := t.r.Type()
-	return extractFieldsFromStruct(".", t.r.Path(), name)
+func (s *Target) Name() string {
+	return s.r.Name()
 }
 
-func (t Target) Type() (string, string) {
-	return t.r.Type()
+func (s *Target) FullName() string {
+	return s.r.Name()
 }
 
-func (t Target) Path() string {
-	return t.r.Path()
+func (s *Target) Type() types.Type {
+	if s.pkg == nil {
+		cfg := &packages.Config{
+			Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
+			Fset: token.NewFileSet(),
+		}
+		pkgs, err := packages.Load(cfg, s.Path())
+		if err != nil {
+			panic(err)
+		}
+		s.pkg = pkgs[0]
+	}
+
+	obj := s.pkg.Types.Scope().Lookup(s.TypeName())
+	return obj.Type()
+}
+
+func (s *Target) DeepType() func() (types.Type, bool) {
+	return func() (types.Type, bool) { return s.Type(), true }
 }

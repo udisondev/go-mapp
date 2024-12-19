@@ -3,15 +3,26 @@ package mapp
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
 	"regexp"
 	"strings"
 )
 
 var mapperRuleReg = regexp.MustCompile(`^@(qual|enum|ignore) `)
 
+type Mappable interface {
+	Path() string
+	Name() string
+	FullName() string
+	TypeName() string
+	Type() types.Type
+	DeepType() func() (undType types.Type, end bool)
+	Fields() []Mappable
+}
 
-func (m Mapper) mappables() Mappable {
-
+type Mapper struct {
+	spec    *ast.Field
+	imports []Import
 }
 
 func (m Mapper) Name() string {
@@ -112,23 +123,21 @@ func (m Mapper) Results() []Result {
 	return params
 }
 
-func (m Mapper) Source() Source {
-	return Source{
+func (m Mapper) Source() Mappable {
+	return &Source{
 		spec: m.Params()[0].spec,
 		p:    m.Params()[0],
 	}
 }
 
-func (m Mapper) Target() Target {
-	return Target{
+func (m Mapper) Target() Mappable {
+	return &Target{
 		spec: m.Results()[0].spec,
 		r:    m.Results()[0],
 	}
 }
 
-func (m Mapper) SourceFieldByTarget(targetFullName string) (Field, bool) {
-	source := m.Source()
-
+func (m Mapper) SourceFieldByTarget(targetFullName string) (Mappable, bool) {
 	sourceFullName := targetFullName
 	for _, r := range m.Rules() {
 		if r.Type() != RuleTypeQual {
@@ -160,7 +169,14 @@ func (m Mapper) SourceFieldByTarget(targetFullName string) (Field, bool) {
 		break
 	}
 
-	return source.FieldByFullName(sourceFullName)
+	for _, f := range m.Source().Fields() {
+		expF, found := deepFieldSearch(f, sourceFullName)
+		if found {
+			return expF, found
+		}
+	}
+
+	return nil, false
 }
 
 func (m Mapper) FieldRules(fieldFullName string) []Rule {

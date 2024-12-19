@@ -1,7 +1,7 @@
 package gen
 
 import (
-	"fmt"
+	// "fmt"
 
 	//lint:ignore ST1001 it's ok
 	. "github.com/dave/jennifer/jen"
@@ -9,17 +9,17 @@ import (
 )
 
 func pointerToBasic(g *Group, src, tt mapp.Field, opts ...genOptFunc) error {
-	pt, ok := src.Type().(mapp.PointerType)
-	if !ok {
-		panic("is not a pointer")
-	}
+	// pt, ok := src.Type().(mapp.PointerType)
+	// if !ok {
+	// 	panic("is not a pointer")
+	// }
 
-	if tt.Type().TypeName() != src.Type().TypeName() {
-		return fmt.Errorf(
-			"could not mapp different types source: '*%s' target: %s",
-			pt.Elem().TypeFamily(),
-			tt.Type().TypeFamily())
-	}
+	// if tt.Type().TypeName() != src.Type().TypeName() {
+	// 	return fmt.Errorf(
+	// 		"could not mapp different types source: '*%s' target: %s",
+	// 		pt.Elem().TypeFamily(),
+	// 		tt.Type().TypeFamily())
+	// }
 
 	ifSrcNotNil(g, src.Name(), func(g *Group) {
 		assign(g).toTarget(tt.Name(), func(stm *Statement) {

@@ -1,7 +1,7 @@
 package gen
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
 
 	//lint:ignore ST1001 it's ok
@@ -57,7 +57,7 @@ func Generate(mf mapp.File) {
 			targetPath(m.Target().Path()),
 			targetType(m.Target().TypeName()),
 			withErr(m.WithError()),
-			ttFields(m.Target().Fields()),
+			// ttFields(m.Target().Fields()),
 		}
 
 		err := generateMapper(
@@ -166,37 +166,37 @@ func generateMapper(mname string, opts ...genOptFunc) error {
 	return err
 }
 
-func generateTargetMapping(g *Group, tt mapp.Field, opts ...genOptFunc) error {
-	gp := gParams(opts...)
-	_, ok := gp.mapper.RulesBy(tt.FullName(), mapp.RuleTypeIgnore)
-	if ok {
-		return nil
-	}
+func generateTargetMapping(g *Group, tt mapp.Mappable, opts ...genOptFunc) error {
+	// gp := gParams(opts...)
+	// _, ok := gp.mapper.RulesBy(tt.FullName(), mapp.RuleTypeIgnore)
+	// if ok {
+	// 	return nil
+	// }
 
-	src, ok := gp.mapper.SourceFieldByTarget(tt.FullName())
-	if !ok {
-		return fmt.Errorf("'%s' has no source field. Use '@ignore -t=%s' or '@qual -t=%s -s=<.Path.To.The.Source>'", tt.FullName(), tt.FullName(), tt.FullName())
-	}
+	// // src, ok := gp.mapper.SourceFieldByTarget(tt.FullName())
+	// if !ok {
+	// 	return fmt.Errorf("'%s' has no source field. Use '@ignore -t=%s' or '@qual -t=%s -s=<.Path.To.The.Source>'", tt.FullName(), tt.FullName(), tt.FullName())
+	// }
 
-	genFn, ok := gp.fldMapFuncs[src.Type().TypeFamily()][tt.Type().TypeFamily()]
-	if !ok {
-		panic(fmt.Sprintf(
-			"unsupported mapping from: %s to %s",
-			src.Type().TypeFamily(),
-			tt.Type().TypeFamily()),
-		)
-	}
+	// genFn, ok := gp.fldMapFuncs[src.Type().TypeFamily()][tt.Type().TypeFamily()]
+	// if !ok {
+	// 	panic(fmt.Sprintf(
+	// 		"unsupported mapping from: %s to %s",
+	// 		src.Type().TypeFamily(),
+	// 		tt.Type().TypeFamily()),
+	// 	)
+	// }
 
-	err := genFn(g, src, tt, opts...)
-	if err != nil {
-		return fmt.Errorf(
-			"error generate mapping from '%s%s' to '%s%s': %w",
-			src.Type().TypeName(),
-			src.FullName(),
-			tt.Type().TypeName(),
-			tt.FullName(),
-			err)
-	}
+	// err := genFn(g, src, tt, opts...)
+	// if err != nil {
+	// 	return fmt.Errorf(
+	// 		"error generate mapping from '%s%s' to '%s%s': %w",
+	// 		src.Type().TypeName(),
+	// 		src.FullName(),
+	// 		tt.Type().TypeName(),
+	// 		tt.FullName(),
+	// 		err)
+	// }
 
 	return nil
 }

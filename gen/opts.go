@@ -16,7 +16,7 @@ type genParams struct {
 	submappers        map[string]string
 	enmMappers        map[string]map[string]mapp.EnumMapper
 	fldMapFuncs       map[mapp.TypeFamily]map[mapp.TypeFamily]fldMapFunc
-	ttFields          []mapp.Field
+	ttFields          []mapp.Mappable
 	mapper            mapp.Mapper
 }
 
@@ -85,7 +85,7 @@ func sourcePath(path string) genOptFunc {
 	}
 }
 
-func ttFields(fields []mapp.Field) genOptFunc {
+func ttFields(fields []mapp.Mappable) genOptFunc {
 	return func(gp genParams) genParams {
 		gp.ttFields = fields
 		return gp

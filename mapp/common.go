@@ -7,14 +7,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func deepFieldSearch(f Field, fieldFullName string) (Field, bool) {
+func deepFieldSearch(f Mappable, fieldFullName string) (Mappable, bool) {
 	if f.FullName() == fieldFullName {
 		return f, true
 	}
 
 	fields := f.Fields()
 	if len(fields) == 0 {
-		return Field{}, false
+		return &Field{}, false
 	}
 
 	for _, ff := range fields {
@@ -24,10 +24,10 @@ func deepFieldSearch(f Field, fieldFullName string) (Field, bool) {
 		}
 	}
 
-	return Field{}, false
+	return &Field{}, false
 }
 
-func extractFieldsFromStruct(filedPath, typePath, typeName string) []Field {
+func extractFieldsFromStruct(filedPath, typePath, typeName string) []Mappable {
 	cfg := &packages.Config{
 		Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
 		Fset: token.NewFileSet(),
@@ -44,7 +44,7 @@ func extractFieldsFromStruct(filedPath, typePath, typeName string) []Field {
 		return nil
 	}
 
-	fields := make([]Field, 0, str.NumFields())
+	fields := make([]Mappable, 0, str.NumFields())
 	for i := 0; i < str.NumFields(); i++ {
 		fields = append(fields, New(
 			str.Field(i),
