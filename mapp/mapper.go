@@ -9,9 +9,9 @@ import (
 
 var mapperRuleReg = regexp.MustCompile(`^@(qual|enum|ignore) `)
 
-type Mapper struct {
-	spec    *ast.Field
-	imports []Import
+
+func (m Mapper) mappables() Mappable {
+
 }
 
 func (m Mapper) Name() string {
