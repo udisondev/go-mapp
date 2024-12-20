@@ -53,6 +53,6 @@ func (s *Target) Type() types.Type {
 	return obj.Type()
 }
 
-func (s *Target) DeepType() func() (types.Type, bool) {
-	return func() (types.Type, bool) { return s.Type(), true }
+func (t *Target) FullType() []types.Type {
+	return []types.Type{t.Type()}
 }

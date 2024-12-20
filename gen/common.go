@@ -62,6 +62,24 @@ type AssignOpt struct {
 	g     *Group
 }
 
+type initF struct {
+	targetName string
+	g *Group
+}
+
+func initTarget(g *Group) initF {
+	return initF{g: g}
+}
+
+func (i initF) Field(name string) initF {
+	i.targetName = name
+	return i
+}
+
+func (i initF) by(name string) {
+	i.g.Id("target").Dot(i.targetName).Op(":").Id(name)
+}
+
 func assign(g *Group) AssignOpt {
 	return AssignOpt{g: g}
 }

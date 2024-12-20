@@ -85,25 +85,18 @@ func (f *Field) TypeName() string {
 	return subType[startTypeNamePos+1:]
 }
 
-// Underlying implements Mappable.
-func (f *Field) DeepType() func() (types.Type, bool) {
-	level := -1
-	currentType := f.Type()
-	return func() (types.Type, bool) {
-		level++
-		if level == 0 {
-			currentType = under(currentType)
-			return f.Type(), isButtom(f.Type())
+func (f *Field) FullType() []types.Type {
+	out := make([]types.Type, 0)
+	out = append(out, f.Type())
+	if !isButtom(f.Type()) {
+		undT := under(f.Type())
+		out = append(out, undT)
+		for !isButtom(undT) {
+			undT = under(undT)
+			out = append(out, undT)
 		}
-
-		if isButtom(currentType) {
-			return currentType, true
-		}
-
-		defer func() { currentType = under(currentType) }()
-
-		return currentType, false
 	}
+	return out
 }
 
 func (f *Field) FullName() string {
@@ -111,17 +104,13 @@ func (f *Field) FullName() string {
 }
 
 func (f *Field) Fields() []Mappable {
-	deepTypeFn := f.DeepType()
-	ft, bottom := deepTypeFn()
-	for !bottom {
-		ft, bottom = deepTypeFn()
-	}
+	typeChain := f.FullType()
 
-	_, ok := ft.(*types.Struct)
+	_, ok := typeChain[len(typeChain)-1].(*types.Struct)
 	if !ok {
 		return nil
 	}
-	
+
 	return extractFieldsFromStruct(f.FullName(), f.Path(), f.TypeName())
 }
 

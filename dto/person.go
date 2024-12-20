@@ -9,7 +9,7 @@ type Person struct {
 	Age         *int
 	MainAccount external.Account
 	Account     []external.Account
-	Profile     Profile
+	Profile     []Profile
 	Type        PersonType
 	Projects    []string
 	Email string

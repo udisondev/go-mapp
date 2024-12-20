@@ -12,8 +12,8 @@ type Person struct {
 	MiddleName  string
 	Age         *int
 	MainAccount external.Account
-	Account     []external.Account
-	Profile     *Profile
+	Account     []*external.Account
+	Profile     *[]Profile
 	Type        PersonType
 	Projects    []string
 }

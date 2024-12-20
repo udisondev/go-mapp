@@ -5,7 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 
-	// "github.com/udisondev/go-mapp/gen"
+	"github.com/udisondev/go-mapp/gen"
 	"github.com/udisondev/go-mapp/mapp"
 )
 
@@ -19,7 +19,7 @@ func main() {
 
 	mapperFile := parse("./mapper_def.go")
 	mapperFile.Mappers()
-	// gen.Generate(mapperFile)
+	gen.GenerateV2(mapperFile)
 	// checkEmapper(mapperFile)
 	check(mapperFile)
 }
@@ -77,10 +77,8 @@ func check(mapperFile mapp.File) {
 		fmt.Printf("m.Source().TypeName(): %v\n", m.Source().TypeName())
 		fmt.Printf("m.Source().Name(): %v\n", m.Source().Name())
 		fmt.Printf("m.Source().Type(): %v T: %T\n", m.Source().Type(), m.Source().Type())
-		fmt.Printf("m.Source().DeepType(): %v\n", m.Source().DeepType())
-		if m.Source().DeepType() == nil {
-			fmt.Println("Underlying is source")
-		}
+		fmt.Printf("m.Source().FullType(): %v\n", m.Source().FullType())
+
 		for _,f  := range m.Source().Fields() {
 			deepFields(f)
 		}
@@ -132,12 +130,10 @@ func check(mapperFile mapp.File) {
 
 func deepFields(f mapp.Mappable) {
 	fmt.Printf("inner field: %s  path: %s\n", f.FullName(), f.Path())
-	undFn := f.DeepType()
-	undT, bottom := undFn()
-	fmt.Printf("Type is: %T", undT)
-	for !bottom {
-		undT, bottom = undFn()
-		fmt.Printf("%T", undT)
+	typeChain := f.FullType()
+	fmt.Print("Type is: ")
+	for _, t := range typeChain {
+		fmt.Printf("%s ", t.String())
 	}
 	fmt.Println()
 

@@ -16,7 +16,7 @@ type Mappable interface {
 	FullName() string
 	TypeName() string
 	Type() types.Type
-	DeepType() func() (undType types.Type, end bool)
+	FullType() []types.Type
 	Fields() []Mappable
 }
 
