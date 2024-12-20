@@ -282,6 +282,9 @@ func generateMapperV2(f *File, target, source mapp.Mappable, m mapp.Mapper) erro
 			ignore         bool
 		}
 		fields := make([]fldEq, 0)
+		addPair := func(tt, src string) {
+			fields = append(fields, fldEq{target: tt, source: src})
+		}
 		for _, tt := range target.Fields() {
 			_, isIgnored := m.RulesBy(tt.FullName(), mapp.RuleTypeIgnore)
 			if isIgnored {
@@ -298,24 +301,21 @@ func generateMapperV2(f *File, target, source mapp.Mappable, m mapp.Mapper) erro
 				log.Fatal(err.Error())
 			}
 			if tt.Type().String() == src.Type().String() {
-				fields = append(fields, fldEq{target: tt.Name(), source: "src." + src.Name()})
+				addPair(tt.Name(), "src."+src.Name())
 				continue
 			}
 			// ttFt := tt.FullType()
 			// srcFt := src.FullType()
 			if tt.Path() == "stdlib" && src.Path() == "stdlib" && isPointer(tt.Type()) && !isPointer(src.Type()) {
-				fields = append(fields, fldEq{target: tt.Name(), source: "&src." + src.Name()})
+				addPair(tt.Name(), "&src."+src.Name())
 				continue
 			}
 
+			addPair(tt.Name(), "mapped"+tt.Name())
 			if tt.Path() == "stdlib" {
 				g.Var().Id("mapped" + tt.Name()).Op(tt.Type().String())
-				fields = append(fields, fldEq{target: tt.Name(), source: "mapped" + tt.Name()})
-				continue
 			} else {
 				g.Var().Id("mapped"+tt.Name()).Op(trimTypeString(tt.Type())).Qual(tt.Path(), tt.TypeName())
-				fields = append(fields, fldEq{target: tt.Name(), source: "mapped" + tt.Name()})
-				continue
 			}
 			// for i, j := 0, 0; i < len(ttFt); {
 			// 	ttT, srcT := ttFt[i], srcFt[j]
