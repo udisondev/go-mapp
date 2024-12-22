@@ -32,7 +32,7 @@ type Mapper interface {
 	//@ignore -s=Crazy -t=Vip
 	//@errf ("I dont want to handle this: %v", pt)
 	//@def Vip
-	MapPersonTypeToDomain(pt d.PersonType) (domain.PersonType, error)
+	MapPersonTypeToDomain(pt d.PersonType) domain.PersonType
 
 	//@qual -s=FirstName -t=.Firstname
 	//@qual -s=Phone -t=.Profile.Number
