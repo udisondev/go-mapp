@@ -40,12 +40,33 @@ func MapPersonToDTO(src domain.Person) dto.Person {
 		mappedFirstName = *src.Firstname
 	}
 	var mappedAccount []external.Account
+	for _, it := range src.Account {
+		var mappedIt external.Account
+		if it != nil {
+			var mappedItMappingErr error
+			mappedIt, mappedItMappingErr = fgzbc(*it)
+			if mappedItMappingErr != nil {
+				panic("Panic")
+			}
+		}
+		mappedAccount = append(mappedAccount, mappedIt)
+	}
 	var mappedProfile []dto.Profile
 	if src.Profile != nil {
+		for _, it := range *src.Profile {
+			var mappedIt dto.Profile
+			var mappedItMappingErr error
+			mappedIt, mappedItMappingErr = cesfj(it)
+			if mappedItMappingErr != nil {
+				panic("Panic")
+			}
+			mappedProfile = append(mappedProfile, mappedIt)
+		}
 	}
 	var mappedType dto.PersonType
-	mappedType, errmappedTypeMapping := MapPersonTypeToDto(src.Type)
-	if errmappedTypeMapping != nil {
+	var mappedTypeMappingErr error
+	mappedType, mappedTypeMappingErr = MapPersonTypeToDto(src.Type)
+	if mappedTypeMappingErr != nil {
 		panic("Panic")
 	}
 
@@ -62,13 +83,49 @@ func MapPersonToDTO(src domain.Person) dto.Person {
 		// Email: ignored
 	}
 }
+func fgzbc(src external.Account) (external.Account, error) {
+	var err error
+
+	return external.Account{
+		Login:    src.Login,
+		Password: src.Password,
+	}, err
+}
+func cesfj(src domain.Profile) (dto.Profile, error) {
+	var err error
+
+	return dto.Profile{
+		Phone: src.Number,
+	}, err
+}
 func MapPersonToDomain(src dto.Person) (domain.Person, error) {
+	var err error
 	var mappedMiddleName string
 	if src.MiddleName != nil {
 		mappedMiddleName = *src.MiddleName
 	}
 	var mappedAccount []*external.Account
+	for _, it := range src.Account {
+		var mappedIt *external.Account
+		var mappedItTmp external.Account
+		mappedItTmp, err = fgzbc(it)
+		if err != nil {
+			panic("Panic")
+		}
+		mappedIt = &mappedItTmp
+		mappedAccount = append(mappedAccount, mappedIt)
+	}
 	var mappedProfile *[]domain.Profile
+	var mappedProfileTmp []domain.Profile
+	for _, it := range src.Profile {
+		var mappedIt domain.Profile
+		mappedIt, err = irolj(it)
+		if err != nil {
+			panic("Panic")
+		}
+		mappedProfileTmp = append(*mappedProfile, mappedIt)
+	}
+	mappedProfile = &mappedProfileTmp
 	var mappedType domain.PersonType
 	mappedType = MapPersonTypeToDomain(src.Type)
 
@@ -82,5 +139,12 @@ func MapPersonToDomain(src dto.Person) (domain.Person, error) {
 		Profile:  mappedProfile,
 		Type:     mappedType,
 		Projects: src.Projects,
-	}, nil
+	}, err
+}
+func irolj(src dto.Profile) (domain.Profile, error) {
+	var err error
+
+	return domain.Profile{
+		Number: src.Phone,
+	}, err
 }

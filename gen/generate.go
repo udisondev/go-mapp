@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"go/types"
 	"log"
+	"time"
 	"unicode"
 
 	//lint:ignore ST1001 it's ok
 	. "github.com/dave/jennifer/jen"
 	"github.com/udisondev/go-mapp/mapp"
+	"golang.org/x/exp/rand"
 )
 
 const charset = "abcdefghijklmnopqrstuvwxyz"
@@ -145,7 +147,11 @@ func isStruct(ft []types.Type) bool {
 		if isSlice(ft[cur]) {
 			return false
 		}
-		
+
+		if isPointer(ft[cur]) {
+			return false
+		}
+
 		_, isNamed := ft[cur].(*types.Named)
 		if isNamed {
 			_, isStruct := ft[cur+1].(*types.Struct)
@@ -171,6 +177,9 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 	stm.Params(returns...)
 
 	stm.BlockFunc(func(g *Group) {
+		if opts.withErr {
+			g.Var().Id("err").Error()
+		}
 		type fldEq struct {
 			target, source string
 			ignore         bool
@@ -228,7 +237,7 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 			}
 		}))
 		if opts.withErr {
-			returns = append(returns, Nil())
+			returns = append(returns, Id("err"))
 		}
 		g.Line()
 		g.Return(returns...)
@@ -238,11 +247,11 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 }
 
 type genOpts struct {
-	ttIsPtr, srcIsPtr bool
-	tt, src           mapp.Mappable
-	withErr bool
-	mapperName string
-	rulesBy func(fieldFullName string, ruleType mapp.RuleType) (mapp.Rule, bool)
+	ttIsPtr, srcIsPtr   bool
+	tt, src             mapp.Mappable
+	withErr             bool
+	mapperName          string
+	rulesBy             func(fieldFullName string, ruleType mapp.RuleType) (mapp.Rule, bool)
 	sourceFieldByTarget func(targetFullName string) (mapp.Mappable, bool)
 }
 
@@ -327,6 +336,7 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 	}
 	if ttIsPtr && !srcIsPtr {
 		mapFld(ttName, srcName, ttTypes[1:], srcTypes, g, append(optFns, WithTargetIsPointer(true))...)
+		return
 	}
 	if !ttIsPtr && srcIsPtr {
 		g.If(Id(srcName).Op("!=").Nil()).BlockFunc(func(g *Group) {
@@ -340,17 +350,58 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 
 	switch {
 	case isSlice(ttTypes[0]) && isSlice(srcTypes[0]):
+		if opts.srcIsPtr {
+			srcName = "*" + srcName
+		}
+		if opts.ttIsPtr {
+			g.Var().Id(ttName + "Tmp").Op(trimTypeString(ttTypes[0])).Qual(opts.tt.Path(), opts.tt.TypeName())
+		}
+		g.For(List(Id("_"), Id("it"))).Op(":=").Range().Id(srcName).BlockFunc(func(g *Group) {
+			if opts.tt.Path() == "stdlib" {
+				g.Var().Id("mappedIt").Op(opts.tt.Type().String())
+			} else {
+				g.Var().Id("mappedIt").Op(trimTypeString(ttTypes[1])).Qual(opts.tt.Path(), opts.tt.TypeName())
+			}
+			mapFld("mappedIt", "it", ttTypes[1:], srcTypes[1:], g, append(optFns, WithTargetIsPointer(isPointer(ttTypes[1])), WithSourceIsPointer(isPointer(srcTypes[1])))...)
+			if opts.ttIsPtr {
+				g.Id(ttName + "Tmp").Op("=").Append(Id("*" + ttName), Id("mappedIt"))
+			} else {
+				g.Id(ttName).Op("=").Append(Id(ttName), Id("mappedIt"))
+			}
+		})
+		if opts.ttIsPtr {
+			g.Id(ttName).Op("=").Id("&" + ttName + "Tmp")
+		}
 	case isStruct(ttTypes) && isStruct(srcTypes):
+		errName := ttName + "MappingErr"
+		if opts.withErr {
+			errName = "err"
+		} else {
+			g.Var().Id(errName).Error()
+		}
+		if opts.srcIsPtr {
+			srcName = "*" + srcName
+		}
 		typesKey := typePairKey(srcTypes[0], ttTypes[0])
 		submapperName, ok := submappers[typesKey]
 		if !ok {
-			submapperName = "map" + ttName
+			submapperName = randString(5)
+			submappers[typesKey] = submapperName
 			generateMapperV2(opts.tt, opts.src, append(optFns, WithErr(true), WithMapperName(submapperName))...)
 		}
-		g.List(Id(ttName), Id("err"+ttName+"Mapping")).Op(":=").Id(submapperName).Call(Id(srcName))
-		g.If(Id("err" + ttName + "Mapping").Op("!=").Nil()).BlockFunc(func(g *Group) {
+		assignTo := ttName
+		if opts.ttIsPtr {
+			assignTo = ttName + "Tmp"
+			g.Var().Id(assignTo).Op(trimTypeString(ttTypes[1])).Qual(opts.tt.Path(), opts.tt.TypeName())
+		}
+		g.List(Id(assignTo), Id(errName)).Op("=").Id(submapperName).Call(Id(srcName))
+		g.If(Id(errName).Op("!=").Nil()).BlockFunc(func(g *Group) {
 			g.Panic(Lit("Panic"))
 		})
+		if opts.ttIsPtr {
+			assignTo = ttName + "Tmp"
+			g.Id(ttName).Op("=").Id("&" + assignTo)
+		}
 	case isEnum(ttTypes) && isEnum(srcTypes):
 		enmMapper, ok := enmMappers[typePairKey(srcTypes[0], ttTypes[0])]
 		if !ok {
@@ -358,18 +409,24 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		}
 		_, withErr := enmMapper.Errormsg()
 		assign := []Code{}
+		errName := ttName + "MappingErr"
+		if opts.withErr {
+			errName = "err"
+		} else {
+			g.Var().Id(errName).Error()
+		}
 		switch {
 		case !withErr && !opts.ttIsPtr:
 			g.Id(ttName).Op("=").Id(enmMapper.Name()).Call(Id(srcName))
 			return
 		case withErr && !opts.ttIsPtr:
-			assign = append(assign, Id(ttName), Id("err"+ttName+"Mapping"))
+			assign = append(assign, Id(ttName), Id(errName))
 		default:
-			assign = append(assign, Id("mapped"+ttName+"Enum"), Id("err"+ttName+"Mapping"))
+			assign = append(assign, Id("mapped"+ttName+"Enum"), Id(errName))
 		}
-		g.List(assign...).Op(":=").Id(enmMapper.Name()).Call(Id(srcName))
+		g.List(assign...).Op("=").Id(enmMapper.Name()).Call(Id(srcName))
 		if withErr {
-			g.If(Id("err" + ttName + "Mapping").Op("!=").Nil()).BlockFunc(func(g *Group) {
+			g.If(Id(errName).Op("!=").Nil()).BlockFunc(func(g *Group) {
 				g.Panic(Lit("Panic"))
 			})
 		}
@@ -382,62 +439,13 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		if basicTt != basicSrc {
 			log.Fatalf("different basic types source: %s target: %s", srcTypes[0].String(), ttTypes[0].String())
 		}
-		basicAssign := g.Id(ttName).Op("=")
 		if opts.ttIsPtr {
-			basicAssign.Add(Op("&"))
+			srcName = "&" + srcName
 		} else if opts.srcIsPtr {
-			basicAssign.Add(Op("*"))
+			srcName = "*" + srcName
 		}
-		basicAssign.Id(srcName)
+		g.Id(ttName).Op("=").Id(srcName)
 	}
-	// if isTtBasic != isSrcBasic {
-	// 	log.Fatalf("has different type famaly")
-	// }
-	// if basicSrc != basicTt {
-	// 	log.Fatalf("has different basic types")
-	// }
-	// if isSrcSlice != isTtSlice {
-	// 	log.Fatalf("has different type famaly")
-	// }
-	// if isSrcEnum != isTtEnum {
-	// 	log.Fatalf("has different type famaly")
-	// }
-	// if isSrcStruct != isTtStruct {
-	// 	log.Fatalf("has different type famaly")
-	// }
-	// if !isTtPtr && isSrcPtr {
-	// 	g.If(Id("src").Dot(src.Name()).Op("!=").Nil()).BlockFunc(func(g *Group) {
-	// 		switch {
-	// 		case isTtBasic:
-	// 			assign(g).to(assignTo).from(func(stm *Statement) {
-	// 				basicSource(stm, ttVar(tt.Name()))
-	// 			})
-	// 		case isTtEnum:
-	// 			emapper := emappers[srcTypes[srcCur].String()][ttTypes[ttCur].String()]
-	// 			if _, withErr := emapper.Errormsg(); withErr {
-	// 				assign(g).
-	// 				g.List(Id(assignTo), "map" + tt.Name() + "Err").Op("=").Id(emapper.Name()).Call(Add(Op("*")).Id("src").Dot(src.Name()))
-	// 				retrn(g).emptyStruct(tt.Path(), tt.Name()).errName("map" + tt.Name() + "Err")
-	// 			}
-
-	// 	}
-	// }
-	// switch {
-	// case isTtPtr && !isSrcPtr && isTtBasic:
-	// 	g.Id(assignTo).Op("=").Add(Op("&")).Id("src").Dot(src.Name())
-	// case !isTtPtr && isSrcPtr && isTtBasic:
-	// 	g.If(Id("src").Dot(src.Name()).Op("!=").Nil()).BlockFunc(func(g *Group) {
-	// 		g.Id(assignTo).Op("=").Add(Op("*")).Id("src").Dot(src.Name())
-	// 	})
-	// case !isTtPtr && isSrcPtr:
-	// 	g.If(Id("src").Dot(src.Name()).Op("!=").Nil()).BlockFunc(func(g *Group) {
-	// 		mapFld(assignTo, tt, src, ttTypes[ttCur:], srcTypes[srcCur:], g)
-	// 	})
-	// case isTtPtr && !isSrcPtr:
-	// 	g.If(Id("src").Dot(src.Name()).Op("!=").Nil()).BlockFunc(func(g *Group) {
-	// 		mapFld(assignTo, tt, src, ttTypes[ttCur:], srcTypes[srcCur:], g)
-	// 	})
-	// }
 }
 
 func typePairKey(s, t types.Type) string {
@@ -452,10 +460,6 @@ func trimTypeString(t types.Type) string {
 		}
 	}
 	return ""
-}
-
-func pointerTo[T any](v T) *T {
-	return &v
 }
 
 func checkTypesChain(tt, src mapp.Mappable) error {
@@ -485,4 +489,21 @@ func dropPointers(arr []types.Type) []types.Type {
 	}
 
 	return out
+}
+
+func randString(length int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyz"
+
+	// Создаем срез байтов нужной длины
+	b := make([]byte, length)
+
+	// Инициализируем генератор случайных чисел текущим временем
+	rand.Seed(uint64(time.Now().UnixNano()))
+
+	// Заполняем срез случайными буквами из letters
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+
+	return string(b)
 }
