@@ -30,8 +30,8 @@ type Mapper interface {
 	//@emapper
 	//@ignorecase
 	//@ignore -s=Crazy -t=Vip
-	//@errf ("I dont want to handle this: %v", pt)
-	MapPersonTypeToDomain(pt d.PersonType) (domain.PersonType, error)
+	//@errf ("I dont want to handle this: %v", name)
+	MapPersonTypeToDomain(name d.PersonType) (domain.PersonType, error)
 
 	//@qual -s=FirstName -t=.Firstname
 	//@qual -s=Phone -t=.Profile.Number
