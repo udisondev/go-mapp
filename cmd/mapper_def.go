@@ -1,19 +1,10 @@
 package main
 
 import (
-	"strings"
-
 	"github.com/udisondev/go-mapp/domain"
 	d "github.com/udisondev/go-mapp/dto"
 )
 
-// TODO добавить обработку slice
-// TODO добавить обработку map
-// TODO добавить обработку enum (with default)
-// TODO work with err
-
-// TODO добавить source path
-// TODO expr
 type Mapper interface {
 
 	//@qual -s=Firstname -t=.FirstName
@@ -30,16 +21,12 @@ type Mapper interface {
 	//@emapper
 	//@ignorecase
 	//@ignore -s=Crazy -t=Vip
-	//@errf ("I dont want to handle this: %v", name)
-	MapPersonTypeToDomain(name d.PersonType) (domain.PersonType, error)
+	//@errf ("there is a cutome err. I dont want to handle this: %v", pt)
+	MapPersonTypeToDomain(pt d.PersonType) (domain.PersonType, error)
 
 	//@qual -s=FirstName -t=.Firstname
 	//@qual -s=Phone -t=.Profile.Number
 	//@qual -t=.Firstname -s=FirstName
 	//@ignore -t=.MainAccount
 	MapPersonToDomain(p d.Person) (domain.Person, error)
-}
-
-func lastNameMapper(lastName string) string {
-	return strings.ToLower(lastName)
 }
