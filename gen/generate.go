@@ -29,9 +29,11 @@ func generateEnumMapper(f *File, em mapp.EnumMapper, include func(key string, em
 
 	include(emapperMapKey(em.Source(), em.Target()), em)
 
-	msg, withErr := em.Errormsg()
+
+	errElems := em.Errormsg()
+	withErr := len(errElems) > 0
 	sign := f.Func().Id(em.Name()).Params(Id(em.Source().Name()).Qual(sourcePath, sourceT))
-	if withErr {
+	if len(errElems) > 0 {
 		sign.Params(Qual(targetPath, targetT), Id("error"))
 	} else {
 		sign.Qual(targetPath, targetT)
@@ -68,10 +70,16 @@ func generateEnumMapper(f *File, em mapp.EnumMapper, include func(key string, em
 							g.Return(Id(def.Value))
 						}
 					case withErr:
+						errCall := []Code{Lit(errElems[0])}
+						if len(errElems) > 1 {
+							for _, v := range errElems[1:] {
+								errCall = append(errCall, Id(v))
+							}
+						}
 						if def.IsString {
-							g.Return(Lit(def.Value), Qual("fmt", "Errorf").Call(Lit(msg), Id("pt")))
+							g.Return(Lit(def.Value), Qual("fmt", "Errorf").Call(errCall...))
 						} else {
-							g.Return(Id(def.Value), Qual("fmt", "Errorf").Call(Lit(msg), Id("pt")))
+							g.Return(Id(def.Value), Qual("fmt", "Errorf").Call(errCall...))
 						}
 					default:
 						g.Panic(Qual("fmt", "Sprintf").Call(Lit("unsupported enum value: %v"), Id(em.Source().Name())))
@@ -455,7 +463,7 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		if !ok {
 			log.Fatalf("has no enum mapper from: %s to: %s", srcTypes[0].String(), ttTypes[0].String())
 		}
-		_, withErr := enmMapper.Errormsg()
+		withErr := enmMapper.WithError()
 		assign := []Code{}
 		errName := ttName + "MappingErr"
 		if opts.withErr {

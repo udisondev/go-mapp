@@ -1,6 +1,7 @@
 package mapp
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"log"
@@ -33,7 +34,7 @@ func (em EnumMapper) Name() string {
 	return em.spec.Names[0].Name
 }
 
-func (em EnumMapper) withError() bool {
+func (em EnumMapper) WithError() bool {
 	if len(em.Results()) < 2 {
 		return false
 	}
@@ -231,9 +232,9 @@ func (em EnumMapper) Target() Enum {
 	}
 }
 
-func (em EnumMapper) Errormsg() (string, bool) {
-	if !em.withError() {
-		return "", false
+func (em EnumMapper) Errormsg() []string {
+	if !em.WithError() {
+		return nil
 	}
 
 	for _, c := range em.Comments() {
@@ -241,12 +242,64 @@ func (em EnumMapper) Errormsg() (string, bool) {
 			continue
 		}
 
-		defConf := strings.TrimPrefix(c.Value(), "@err")
-		return defConf[1:], true
+		elems, err := parseComment(c.Value())
+		if err != nil {
+			log.Fatal(err)
+		}
+		return elems
 	}
 
-	return "unknown source enum: %v", true
+	return []string{"unknown source enum: %v", "src"}
 }
+
+// parseComment принимает строку комментария и возвращает массив строк или ошибку
+func parseComment(comment string) ([]string, error) {
+	// Регулярное выражение для извлечения типа, сообщения и аргументов
+	var re = regexp.MustCompile(`^@err(f)?\s*$begin:math:text$\\s*"([^"]*)"(?:\\s*,\\s*(.*))?\\s*$end:math:text$$`)
+   
+	matches := re.FindStringSubmatch(comment)
+	if matches == nil {
+	 return nil, errors.New("неверный формат комментария")
+	}
+   
+	isErrf := matches[1] == "f"    // Проверка, является ли тип @errf
+	message := matches[2]          // Извлечение сообщения
+	argsStr := matches[3]          // Извлечение аргументов (если есть)
+   
+	var args []string
+	if isErrf {
+	 if argsStr != "" {
+	  // Разделение аргументов по запятым и удаление лишних пробелов
+	  args = splitArgs(argsStr)
+	 }
+	} else { // @err
+	 if argsStr != "" {
+	  return nil, errors.New("@err не должен иметь дополнительных аргументов")
+	 }
+	}
+   
+	// Формирование результирующего массива
+	result := []string{message}
+	if len(args) > 0 {
+	 result = append(result, args...)
+	}
+	return result, nil
+   }
+   
+   // splitArgs разделяет строку аргументов по запятым
+   func splitArgs(argsStr string) []string {
+	// Разделение по запятым
+	parts := strings.Split(argsStr, ",")
+	var args []string
+	for _, p := range parts {
+	 arg := strings.TrimSpace(p)
+	 if arg != "" {
+	  args = append(args, arg)
+	 }
+	}
+	return args
+   }
+   
 
 func (em EnumMapper) Default() (Default, bool) {
 	tt := em.Target().BaseType()
