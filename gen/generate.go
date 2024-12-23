@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/types"
 	"log"
+	"strings"
 	"time"
 	"unicode"
 
@@ -188,41 +189,46 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 		addPair := func(tt, src string) {
 			fields = append(fields, fldEq{target: tt, source: src})
 		}
-		for _, tt := range target.Fields() {
-			_, isIgnored := opts.rulesBy(tt.FullName(), mapp.RuleTypeIgnore)
+		for _, ttFld := range target.Fields() {
+			_, isIgnored := opts.rulesBy(ttFld.FullName(), mapp.RuleTypeIgnore)
 			if isIgnored {
-				fields = append(fields, fldEq{target: tt.Name(), ignore: true})
+				fields = append(fields, fldEq{target: ttFld.Name(), ignore: true})
 				continue
 			}
 
-			src, exists := opts.sourceFieldByTarget(tt.FullName())
+			srcFld, exists := opts.sourceFieldByTarget(ttFld.FullName())
 			if !exists {
-				log.Fatalf("'%s' has no source field. Use '@ignore -t=%s' or '@qual -t=%s -s=<.Path.To.The.Source.FieldName>'", tt.FullName(), tt.FullName(), tt.FullName())
+				log.Fatalf("'%s' has no source field. Use '@ignore -t=%s' or '@qual -t=%s -s=<.Path.To.The.Source.FieldName>'", ttFld.FullName(), ttFld.FullName(), ttFld.FullName())
 			}
-			err := checkTypesChain(tt, src)
+			err := checkTypesChain(ttFld, srcFld)
 			if err != nil {
 				log.Fatal(err.Error())
 			}
-			if tt.Type().String() == src.Type().String() {
-				addPair(tt.Name(), "src."+src.Name())
+			if ttFld.Type().String() == srcFld.Type().String() {
+				addPair(ttFld.Name(), "src."+srcFld.Name())
 				continue
 			}
 
-			if tt.Path() == "stdlib" && src.Path() == "stdlib" && isPointer(tt.Type()) && !isPointer(src.Type()) {
-				addPair(tt.Name(), "&src."+src.Name())
+			if ttFld.Path() == "stdlib" && srcFld.Path() == "stdlib" && isPointer(ttFld.Type()) && !isPointer(srcFld.Type()) {
+				addPair(ttFld.Name(), "&src."+srcFld.Name())
 				continue
 			}
 
-			addPair(tt.Name(), "mapped"+tt.Name())
-			if tt.Path() == "stdlib" {
-				g.Var().Id("mapped" + tt.Name()).Op(tt.Type().String())
+			ttFt := ttFld.FullType()
+			srcFt := srcFld.FullType()
+			truncatedTtFt, truncated := trucatePointer(ttFt)
+			mappedFieldName := "mapped" + ttFld.Name()
+			if truncated {
+				mappedFieldName = "&" + mappedFieldName
+			}
+			addPair(ttFld.Name(), mappedFieldName)
+			if ttFld.Path() == "stdlib" {
+				g.Var().Id("mapped" + ttFld.Name()).Op(truncatedTtFt[0].String())
 			} else {
-				g.Var().Id("mapped"+tt.Name()).Op(trimTypeString(tt.Type())).Qual(tt.Path(), tt.TypeName())
+				g.Var().Id("mapped"+ttFld.Name()).Op(trimTypeString(truncatedTtFt[0])).Qual(ttFld.Path(), ttFld.TypeName())
 			}
 
-			ttFt := tt.FullType()
-			srcFt := src.FullType()
-			mapFld("mapped"+tt.Name(), "src."+src.Name(), ttFt, srcFt, g, append(optFuncs, WithTargetField(tt), WithSourceField(src))...)
+			mapFld("mapped"+ttFld.Name(), "src."+srcFld.Name(), truncatedTtFt, srcFt, g, append(optFuncs, WithTarget(target), WithSource(source), WithTargetField(ttFld), WithSourceField(srcFld))...)
 		}
 
 		returns := make([]Code, 0)
@@ -252,6 +258,7 @@ type genOpts struct {
 	tt, src             mapp.Mappable
 	withErr             bool
 	mapperName          string
+	iterValName         func() string
 	rulesBy             func(fieldFullName string, ruleType mapp.RuleType) (mapp.Rule, bool)
 	sourceFieldByTarget func(targetFullName string) (mapp.Mappable, bool)
 }
@@ -261,6 +268,13 @@ type optFunc func(genOpts) genOpts
 func WithRulesBy(fn func(fieldFullName string, ruleType mapp.RuleType) (mapp.Rule, bool)) optFunc {
 	return func(g genOpts) genOpts {
 		g.rulesBy = fn
+		return g
+	}
+}
+
+func WithIterValName(fn func() string) optFunc {
+	return func(g genOpts) genOpts {
+		g.iterValName = fn
 		return g
 	}
 }
@@ -322,7 +336,7 @@ func WithSourceField(srcFld mapp.Mappable) optFunc {
 	}
 }
 
-func WithTarge(tt mapp.Mappable) optFunc {
+func WithTarget(tt mapp.Mappable) optFunc {
 	return func(g genOpts) genOpts {
 		g.tt = tt
 		return g
@@ -342,6 +356,18 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 	}
 
 	opts := gOpts(optFns...)
+	if opts.iterValName == nil {
+		iterValsFunc := WithIterValName(func() func() string {
+			iterVals := []string{"a", "b", "c", "d", "e"}
+			cur := -1
+			return func() string {
+				cur++
+				return iterVals[cur]
+			}
+		}())
+		optFns = append(optFns, iterValsFunc)
+		opts = iterValsFunc(opts)
+	}
 
 	ttIsPtr := isPointer(ttTypes[0])
 	srcIsPtr := isPointer(srcTypes[0])
@@ -371,17 +397,19 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		if opts.ttIsPtr {
 			g.Var().Id(ttName+"Tmp").Op(trimTypeString(ttTypes[0])).Qual(opts.ttFld.Path(), opts.ttFld.TypeName())
 		}
-		g.For(List(Id("_"), Id("it"))).Op(":=").Range().Id(srcName).BlockFunc(func(g *Group) {
+		iterName := opts.iterValName()
+		g.For(List(Id("_"), Id(iterName))).Op(":=").Range().Id(srcName).BlockFunc(func(g *Group) {
+			assignTo := opts.ttFld.Name() + strings.Join(buildTmpNames(ttTypes[1:]), "")
 			if opts.ttFld.Path() == "stdlib" {
-				g.Var().Id("mappedIt").Op(opts.ttFld.Type().String())
+				g.Var().Id(assignTo).Op(opts.ttFld.Type().String())
 			} else {
-				g.Var().Id("mappedIt").Op(trimTypeString(ttTypes[1])).Qual(opts.ttFld.Path(), opts.ttFld.TypeName())
+				g.Var().Id(assignTo).Op(trimTypeString(ttTypes[1])).Qual(opts.ttFld.Path(), opts.ttFld.TypeName())
 			}
-			mapFld("mappedIt", "it", ttTypes[1:], srcTypes[1:], g, append(optFns, WithTargetIsPointer(isPointer(ttTypes[1])), WithSourceIsPointer(isPointer(srcTypes[1])))...)
+			mapFld(assignTo, iterName, ttTypes[1:], srcTypes[1:], g, append(optFns, WithTargetIsPointer(isPointer(ttTypes[1])), WithSourceIsPointer(isPointer(srcTypes[1])))...)
 			if opts.ttIsPtr {
-				g.Id(ttName+"Tmp").Op("=").Append(Id("*"+ttName), Id("mappedIt"))
+				g.Id(ttName+"Tmp").Op("=").Append(Id("*"+ttName), Id(assignTo))
 			} else {
-				g.Id(ttName).Op("=").Append(Id(ttName), Id("mappedIt"))
+				g.Id(ttName).Op("=").Append(Id(ttName), Id(assignTo))
 			}
 		})
 		if opts.ttIsPtr {
@@ -413,11 +441,10 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		g.If(Id(errName).Op("!=").Nil()).BlockFunc(func(g *Group) {
 			errMessage := fmt.Sprintf("error map from '%s' to '%s'", opts.srcFld.Name(), opts.ttFld.Name())
 			if opts.withErr {
-				g.Return(List(g.Qual(opts.tt.Path(), opts.tt.TypeName()), Qual("fmt", "Errorf").Call(List(Lit(errMessage + ":")), Id(errName))))
+				g.Return(List(Qual(opts.tt.Path(), opts.tt.TypeName()).Block(), Qual("fmt", "Errorf").Call(List(Lit(errMessage+":%w")), Id(errName))))
 			} else {
-				g.Panic(List(Lit(errMessage + ":"), Id(errName)))
+				g.Panic(Qual("fmt", "Sprintf").Call(List(Lit(errMessage+":%v")), Id(errName)))
 			}
-			g.Panic(Lit("Panic"))
 		})
 		if opts.ttIsPtr {
 			assignTo = ttName + "Tmp"
@@ -473,6 +500,29 @@ func typePairKey(s, t types.Type) string {
 	return s.String() + "|" + t.String()
 }
 
+func buildTmpNames(tps []types.Type) []string {
+	out := []string{}
+	for _, t := range tps {
+		if isPointer(t) {
+			out = append(out, "Pointer")
+			continue
+		}
+		if isSlice(t) {
+			out = append(out, "Slice")
+			continue
+		}
+		if isEnum(tps) {
+			out = append(out, "Enum")
+			break
+		}
+		if isStruct(tps) {
+			out = append(out, "Struct")
+			break
+		}
+	}
+	return out
+}
+
 func trimTypeString(t types.Type) string {
 	raw := t.String()
 	for i, r := range raw {
@@ -497,6 +547,13 @@ func checkTypesChain(tt, src mapp.Mappable) error {
 	}
 
 	return nil
+}
+
+func trucatePointer(tps []types.Type) ([]types.Type, bool) {
+	if isPointer(tps[0]) {
+		return tps[1:], true
+	}
+	return tps, false
 }
 
 func dropPointers(arr []types.Type) []types.Type {

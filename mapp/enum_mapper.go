@@ -241,8 +241,8 @@ func (em EnumMapper) Errormsg() (string, bool) {
 			continue
 		}
 
-		defConf := strings.Split(c.Value(), " ")
-		return defConf[1], true
+		defConf := strings.TrimPrefix(c.Value(), "@err")
+		return defConf[1:], true
 	}
 
 	return "unknown source enum: %v", true
