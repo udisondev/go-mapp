@@ -222,7 +222,7 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 
 			ttFt := tt.FullType()
 			srcFt := src.FullType()
-			mapFld("mapped"+tt.Name(), "src."+src.Name(), ttFt, srcFt, g, append(optFuncs, WithTarget(tt), WithSource(src))...)
+			mapFld("mapped"+tt.Name(), "src."+src.Name(), ttFt, srcFt, g, append(optFuncs, WithTargetField(tt), WithSourceField(src))...)
 		}
 
 		returns := make([]Code, 0)
@@ -248,6 +248,7 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 
 type genOpts struct {
 	ttIsPtr, srcIsPtr   bool
+	ttFld, srcFld       mapp.Mappable
 	tt, src             mapp.Mappable
 	withErr             bool
 	mapperName          string
@@ -307,7 +308,21 @@ func gOpts(opts ...optFunc) genOpts {
 	return g
 }
 
-func WithTarget(tt mapp.Mappable) optFunc {
+func WithTargetField(ttFld mapp.Mappable) optFunc {
+	return func(g genOpts) genOpts {
+		g.ttFld = ttFld
+		return g
+	}
+}
+
+func WithSourceField(srcFld mapp.Mappable) optFunc {
+	return func(g genOpts) genOpts {
+		g.srcFld = srcFld
+		return g
+	}
+}
+
+func WithTarge(tt mapp.Mappable) optFunc {
 	return func(g genOpts) genOpts {
 		g.tt = tt
 		return g
@@ -354,17 +369,17 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 			srcName = "*" + srcName
 		}
 		if opts.ttIsPtr {
-			g.Var().Id(ttName + "Tmp").Op(trimTypeString(ttTypes[0])).Qual(opts.tt.Path(), opts.tt.TypeName())
+			g.Var().Id(ttName+"Tmp").Op(trimTypeString(ttTypes[0])).Qual(opts.ttFld.Path(), opts.ttFld.TypeName())
 		}
 		g.For(List(Id("_"), Id("it"))).Op(":=").Range().Id(srcName).BlockFunc(func(g *Group) {
-			if opts.tt.Path() == "stdlib" {
-				g.Var().Id("mappedIt").Op(opts.tt.Type().String())
+			if opts.ttFld.Path() == "stdlib" {
+				g.Var().Id("mappedIt").Op(opts.ttFld.Type().String())
 			} else {
-				g.Var().Id("mappedIt").Op(trimTypeString(ttTypes[1])).Qual(opts.tt.Path(), opts.tt.TypeName())
+				g.Var().Id("mappedIt").Op(trimTypeString(ttTypes[1])).Qual(opts.ttFld.Path(), opts.ttFld.TypeName())
 			}
 			mapFld("mappedIt", "it", ttTypes[1:], srcTypes[1:], g, append(optFns, WithTargetIsPointer(isPointer(ttTypes[1])), WithSourceIsPointer(isPointer(srcTypes[1])))...)
 			if opts.ttIsPtr {
-				g.Id(ttName + "Tmp").Op("=").Append(Id("*" + ttName), Id("mappedIt"))
+				g.Id(ttName+"Tmp").Op("=").Append(Id("*"+ttName), Id("mappedIt"))
 			} else {
 				g.Id(ttName).Op("=").Append(Id(ttName), Id("mappedIt"))
 			}
@@ -387,15 +402,21 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		if !ok {
 			submapperName = randString(5)
 			submappers[typesKey] = submapperName
-			generateMapperV2(opts.tt, opts.src, append(optFns, WithErr(true), WithMapperName(submapperName))...)
+			generateMapperV2(opts.ttFld, opts.srcFld, append(optFns, WithErr(true), WithMapperName(submapperName))...)
 		}
 		assignTo := ttName
 		if opts.ttIsPtr {
 			assignTo = ttName + "Tmp"
-			g.Var().Id(assignTo).Op(trimTypeString(ttTypes[1])).Qual(opts.tt.Path(), opts.tt.TypeName())
+			g.Var().Id(assignTo).Op(trimTypeString(ttTypes[1])).Qual(opts.ttFld.Path(), opts.ttFld.TypeName())
 		}
 		g.List(Id(assignTo), Id(errName)).Op("=").Id(submapperName).Call(Id(srcName))
 		g.If(Id(errName).Op("!=").Nil()).BlockFunc(func(g *Group) {
+			errMessage := fmt.Sprintf("error map from '%s' to '%s'", opts.srcFld.Name(), opts.ttFld.Name())
+			if opts.withErr {
+				g.Return(List(g.Qual(opts.tt.Path(), opts.tt.TypeName()), Qual("fmt", "Errorf").Call(List(Lit(errMessage + ":")), Id(errName))))
+			} else {
+				g.Panic(List(Lit(errMessage + ":"), Id(errName)))
+			}
 			g.Panic(Lit("Panic"))
 		})
 		if opts.ttIsPtr {
