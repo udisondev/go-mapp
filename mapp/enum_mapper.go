@@ -249,57 +249,49 @@ func (em EnumMapper) Errormsg() []string {
 		return elems
 	}
 
-	return []string{"unknown source enum: %v", "src"}
+	return []string{"unknown source enum: %v", em.Source().Name()}
 }
 
 // parseComment принимает строку комментария и возвращает массив строк или ошибку
 func parseComment(comment string) ([]string, error) {
-	// Регулярное выражение для извлечения типа, сообщения и аргументов
-	var re = regexp.MustCompile(`^@err(f)?\s*$begin:math:text$\\s*"([^"]*)"(?:\\s*,\\s*(.*))?\\s*$end:math:text$$`)
-   
-	matches := re.FindStringSubmatch(comment)
-	if matches == nil {
-	 return nil, errors.New("неверный формат комментария")
+	comment = strings.TrimPrefix(comment, "//")
+
+	out := make([]string, 0)
+	stargMsg, endMsg := -1, -1
+
+	cur := 0
+	for cur < len(comment)-1 {
+		if comment[cur] == '\\' {
+			cur++
+			continue
+		}
+		if comment[cur] == '"' {
+			if stargMsg < 0 {
+				stargMsg = cur+1
+			} else {
+				endMsg = cur
+			}
+		}
+		cur++
 	}
-   
-	isErrf := matches[1] == "f"    // Проверка, является ли тип @errf
-	message := matches[2]          // Извлечение сообщения
-	argsStr := matches[3]          // Извлечение аргументов (если есть)
-   
-	var args []string
-	if isErrf {
-	 if argsStr != "" {
-	  // Разделение аргументов по запятым и удаление лишних пробелов
-	  args = splitArgs(argsStr)
-	 }
-	} else { // @err
-	 if argsStr != "" {
-	  return nil, errors.New("@err не должен иметь дополнительных аргументов")
-	 }
+	if endMsg < 0 {
+		return nil, errors.New("message must be wrapped by \"some message\"")
 	}
-   
-	// Формирование результирующего массива
-	result := []string{message}
-	if len(args) > 0 {
-	 result = append(result, args...)
+
+	out = append(out, comment[stargMsg:endMsg])
+	if !strings.HasPrefix(comment, "@errf") {
+		return out, nil
 	}
-	return result, nil
-   }
-   
-   // splitArgs разделяет строку аргументов по запятым
-   func splitArgs(argsStr string) []string {
-	// Разделение по запятым
-	parts := strings.Split(argsStr, ",")
-	var args []string
-	for _, p := range parts {
-	 arg := strings.TrimSpace(p)
-	 if arg != "" {
-	  args = append(args, arg)
-	 }
+
+	argsPart := comment[endMsg+1:]
+	argsPart = strings.TrimPrefix(argsPart, ",")
+	argsPart = strings.TrimSuffix(argsPart, ")")
+	args := strings.Split(argsPart, ",")
+	for _, a := range args {
+		out = append(out, strings.TrimSpace(a))
 	}
-	return args
-   }
-   
+	return out, nil
+}
 
 func (em EnumMapper) Default() (Default, bool) {
 	tt := em.Target().BaseType()
@@ -314,8 +306,8 @@ func (em EnumMapper) Default() (Default, bool) {
 			%s has invalid @def format '%s'.
 			Examples:
 			1) If target is string -> '@def "any value" or '@def ""'
-			2) If target is integer -> '@def 0' or '@def 5' itc
-			3) If target is float -> '@def 4.7' or '@def 0' itc
+			2) If target is integer -> '@def 0' or '@def 5' etc
+			3) If target is float -> '@def 4.7' or '@def 0' etc
 			4) If target is bool -> '@def true' or '@def false
 			5) Or any target enum value without type specifying -> if target has AnyType.Value '@def Value'`, em.Name(), c.Value())
 		}
