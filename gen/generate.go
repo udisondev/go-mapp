@@ -499,7 +499,12 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		g.List(assign...).Op("=").Id(enmMapper.Name()).Call(Id(srcName))
 		if withErr {
 			g.If(Id(errName).Op("!=").Nil()).BlockFunc(func(g *Group) {
-				g.Panic(Lit("Panic"))
+				errMessage := fmt.Sprintf("'%s' -> '%s'", opts.srcFld.Name(), opts.ttFld.Name())
+				if opts.withErr {
+					g.Return(List(Qual(opts.tt.Path(), opts.tt.TypeName()).Block(), Qual("fmt", "Errorf").Call(List(Lit(errMessage+": %w")), Id(errName))))
+				} else {
+					g.Panic(Qual("fmt", "Sprintf").Call(List(Lit(errMessage+": %v")), Id(errName)))
+				}
 			})
 		}
 		ttAssign := Id(ttName).Op("=")
