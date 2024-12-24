@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/udisondev/go-mapp/domain"
 	d "github.com/udisondev/go-mapp/dto"
 )
@@ -8,7 +10,7 @@ import (
 type Mapper interface {
 
 	//@qual -s=Firstname -t=.FirstName
-	//@qual -t=.LastName -mn=lastNameMapper
+	//@qual -t=.LastName -mn=toUpper(p.LastName)
 	//@qual -s=Number -t=.Profile.Phone
 	//@ignore -t=.Email
 	MapPersonToDTO(p domain.Person) d.Person
@@ -29,4 +31,8 @@ type Mapper interface {
 	//@qual -t=.Firstname -s=FirstName
 	//@ignore -t=.MainAccount
 	MapPersonToDomain(p d.Person) (domain.Person, error)
+}
+
+func toUpper(v string) string {
+	return strings.ToUpper(v)
 }
