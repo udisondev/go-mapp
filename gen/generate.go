@@ -29,17 +29,23 @@ func generateEnumMapper(f *File, em mapp.EnumMapper, include func(key string, em
 
 	include(emapperMapKey(em.Source(), em.Target()), em)
 
-
 	errElems := em.Errormsg()
-	withErr := len(errElems) > 0
+	withErr := em.WithError()
 	sign := f.Func().Id(em.Name()).Params(Id(em.Source().Name()).Qual(sourcePath, sourceT))
-	if len(errElems) > 0 {
+	if withErr {
 		sign.Params(Qual(targetPath, targetT), Id("error"))
 	} else {
 		sign.Qual(targetPath, targetT)
 	}
 	sign.
 		BlockFunc(func(g *Group) {
+			errCall := []Code{}
+			errCall = append(errCall, Lit(errElems[0]))
+			if len(errElems) > 1 {
+				for _, v := range errElems[1:] {
+					errCall = append(errCall, Id(v))
+				}
+			}
 			g.Switch(Id(em.Source().Name())).BlockFunc(func(g *Group) {
 				for s, t := range em.EnumsMap() {
 					returns := []Code{Qual(em.Target().Path(), t)}
@@ -70,19 +76,13 @@ func generateEnumMapper(f *File, em mapp.EnumMapper, include func(key string, em
 							g.Return(Id(def.Value))
 						}
 					case withErr:
-						errCall := []Code{Lit(errElems[0])}
-						if len(errElems) > 1 {
-							for _, v := range errElems[1:] {
-								errCall = append(errCall, Id(v))
-							}
-						}
 						if def.IsString {
 							g.Return(Lit(def.Value), Qual("fmt", "Errorf").Call(errCall...))
 						} else {
 							g.Return(Id(def.Value), Qual("fmt", "Errorf").Call(errCall...))
 						}
 					default:
-						g.Panic(Qual("fmt", "Sprintf").Call(Lit("unsupported enum value: %v"), Id(em.Source().Name())))
+						g.Panic(Qual("fmt", "Sprintf").Call(errCall...))
 					}
 				})
 			})
@@ -446,8 +446,6 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 		} else {
 			g.Var().Id(errName).Error()
 		}
-
-
 
 		typesKey := typePairKey(srcTypes[0], ttTypes[0])
 		submapperName, ok := submappers[typesKey]

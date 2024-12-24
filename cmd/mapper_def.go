@@ -22,7 +22,7 @@ type Mapper interface {
 	//@ignorecase
 	//@ignore -s=Crazy -t=Vip
 	//@errf ("there is a cutome err. I dont want to handle this: %v", pt)
-	MapPersonTypeToDomain(pt d.PersonType) (domain.PersonType, error)
+	MapPersonTypeToDomain(pt d.PersonType) domain.PersonType
 
 	//@qual -s=FirstName -t=.Firstname
 	//@qual -s=Phone -t=.Profile.Number

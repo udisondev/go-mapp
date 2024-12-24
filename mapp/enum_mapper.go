@@ -233,10 +233,6 @@ func (em EnumMapper) Target() Enum {
 }
 
 func (em EnumMapper) Errormsg() []string {
-	if !em.WithError() {
-		return nil
-	}
-
 	for _, c := range em.Comments() {
 		if !strings.HasPrefix(c.Value(), "@err") {
 			continue
