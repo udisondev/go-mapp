@@ -43,12 +43,17 @@ func (f File) Mappers() []Mapper {
 		imports := f.Imports()
 	searchMethodLoop:
 		for _, v := range iface.Methods.List {
+			if v.Doc == nil {
+				goto addMapper
+			}
+
 			for _, d := range v.Doc.List {
 				if strings.Contains(d.Text, "@emapper") {
 					continue searchMethodLoop
 				}
 			}
 
+			addMapper:
 			methodList = append(methodList, Mapper{
 				spec:    v,
 				imports: imports,
@@ -83,6 +88,9 @@ func (f File) EnumsMappers() []EnumMapper {
 		imports := f.Imports()
 		for _, v := range iface.Methods.List {
 			var isEmapper bool
+			if v.Doc == nil {
+				continue
+			}
 			for _, d := range v.Doc.List {
 				if strings.Contains(d.Text, "@emapper") {
 					isEmapper = true

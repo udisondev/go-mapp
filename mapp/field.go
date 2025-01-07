@@ -2,6 +2,7 @@
 package mapp
 
 import (
+	"fmt"
 	"go/types"
 	"strings"
 	"unicode"
@@ -31,6 +32,7 @@ func (f *Field) Name() string {
 
 func (f *Field) Path() string {
 	typeString := f.spec.Type().String()
+	fmt.Printf("Type.String() of '%s' is : %v\n", f.FullName(), f.spec)
 	startTypeNamePos := strings.LastIndex(typeString, ".")
 	if startTypeNamePos < 0 {
 		return stdlib

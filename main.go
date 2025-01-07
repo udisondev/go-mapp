@@ -22,6 +22,8 @@ func main() {
 		fmt.Printf("Error getting current directory: %v\n", err)
 		os.Exit(1)
 	}
+	fpath := filepath.Join(cwd, goFile)
+	fmt.Printf("generating '%s'...\n", fpath)
 
 	pkgName := os.Getenv("GOPACKAGE")
 	if goFile == "" {
@@ -29,5 +31,5 @@ func main() {
 		os.Exit(1)
 	}
 	filenameWithoutExtension, _ := strings.CutSuffix(goFile, ".go")
-	gen.Generate(mapp.MapperFile(filepath.Join(cwd, goFile)), pkgName, filepath.Join(cwd, filenameWithoutExtension+"_impl.go"))
+	gen.Generate(mapp.MapperFile(fpath), pkgName, filepath.Join(cwd, filenameWithoutExtension+"_impl.go"))
 }

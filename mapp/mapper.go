@@ -39,6 +39,9 @@ func (m Mapper) WithError() bool {
 }
 
 func (m Mapper) Comments() []Comment {
+	if m.spec.Doc == nil {
+		return nil
+	}
 	comments := make([]Comment, 0, len(m.spec.Doc.List))
 	for _, v := range m.spec.Doc.List {
 		comments = append(comments, Comment{spec: v})
