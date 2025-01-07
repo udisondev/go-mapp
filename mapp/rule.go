@@ -24,7 +24,7 @@ type Qual struct {
 
 type MethodSource struct {
 	Target, Name, Path string
-} 
+}
 
 func (ms MethodSource) WithErr() bool {
 	nodes := []*ast.File{file}
@@ -71,7 +71,7 @@ func (ms MethodSource) WithErr() bool {
 					returningErr = true
 					return false
 				}
-				 
+
 			}
 
 			return false
@@ -85,7 +85,6 @@ func (ms MethodSource) WithErr() bool {
 	return returningErr
 }
 
-func (i IgnoreTarget) FieldFullName() string { return i.FullName}
-func (i Qual) FieldFullName() string { return i.Target}
+func (i IgnoreTarget) FieldFullName() string { return i.FullName }
+func (i Qual) FieldFullName() string         { return i.Target }
 func (i MethodSource) FieldFullName() string { return i.Target }
-

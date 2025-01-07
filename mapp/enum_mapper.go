@@ -266,7 +266,7 @@ func parseComment(comment string) ([]string, error) {
 		}
 		if comment[cur] == '"' {
 			if stargMsg < 0 {
-				stargMsg = cur+1
+				stargMsg = cur + 1
 			} else {
 				endMsg = cur
 			}

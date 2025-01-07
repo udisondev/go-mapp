@@ -2,35 +2,12 @@
 package mapp
 
 import (
-	// "fmt"
 	"go/types"
 	"strings"
 	"unicode"
 )
 
-// TypeFamily ENUM(basic, named, struct, pointer, slice)
-type TypeFamily uint8
-
-type TypedField interface {
-	TypeFamily() TypeFamily
-	Path() string
-	TypeName() string
-}
-
 const stdlib = "stdlib"
-
-func extractType(s string) string {
-	toReturn := s
-	if strings.Contains(s, ".") {
-		splitedT := strings.Split(s, ".")
-		toReturn = splitedT[len(splitedT)-1]
-	}
-
-	toReturn = strings.ReplaceAll(toReturn, "*", "")
-	toReturn = strings.ReplaceAll(toReturn, "[]", "")
-
-	return toReturn
-}
 
 type Field struct {
 	spec      *types.Var
@@ -52,7 +29,6 @@ func (f *Field) Name() string {
 	return f.spec.Origin().Name()
 }
 
-// Path implements Mappable.
 func (f *Field) Path() string {
 	typeString := f.spec.Type().String()
 	startTypeNamePos := strings.LastIndex(typeString, ".")
@@ -68,7 +44,6 @@ func (f *Field) Path() string {
 	return subString
 }
 
-// TypeName implements Mappable.
 func (f *Field) TypeName() string {
 	var subType string
 	for i, r := range f.spec.Type().String() {

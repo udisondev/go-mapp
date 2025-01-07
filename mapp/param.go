@@ -7,7 +7,7 @@ import (
 )
 
 type Param struct {
-	spec *ast.Field
+	spec    *ast.Field
 	imports []Import
 }
 

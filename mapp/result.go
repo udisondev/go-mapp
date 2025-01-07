@@ -7,10 +7,9 @@ import (
 )
 
 type Result struct {
-	spec *ast.Field
+	spec    *ast.Field
 	imports []Import
 }
-
 
 func (p Result) Name() string {
 	if len(p.spec.Names) == 0 {

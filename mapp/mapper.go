@@ -57,37 +57,40 @@ func (m Mapper) Rules() []Rule {
 
 		commandElements := strings.Split(val, " ")
 		switch commandElements[0] {
-			case "@ql":
-				q := Qual{}
-				for _, el := range commandElements[1:] {
-					args := strings.Split(el, "=")
-					switch args[0] {
-						case "-s":
-							q.Source = args[1]
-						case "-t":
-							q.Target = args[1]
-						default: log.Fatalf("Unknown argument: %s", args[0])
-					}
+		case "@ql":
+			q := Qual{}
+			for _, el := range commandElements[1:] {
+				args := strings.Split(el, "=")
+				switch args[0] {
+				case "-s":
+					q.Source = args[1]
+				case "-t":
+					q.Target = args[1]
+				default:
+					log.Fatalf("Unknown argument: %s", args[0])
 				}
-				rules = append(rules, q)
-			case "@igt":
-				rules = append(rules, IgnoreTarget{FullName: commandElements[1]})
-			case "@mm":
-				mm := MethodSource{}
-				for _, el := range commandElements[1:] {
-					args := strings.Split(el, "=")				
-					switch args[0] {
-						case "-t":
-							mm.Target = args[1]
-						case "-n":
-							mm.Name = args[1]
-						case "-p":
-							mm.Path = args[1]
-						default: log.Fatalf("Unknown argument: %s", args[0])
-					}
+			}
+			rules = append(rules, q)
+		case "@igt":
+			rules = append(rules, IgnoreTarget{FullName: commandElements[1]})
+		case "@mm":
+			mm := MethodSource{}
+			for _, el := range commandElements[1:] {
+				args := strings.Split(el, "=")
+				switch args[0] {
+				case "-t":
+					mm.Target = args[1]
+				case "-n":
+					mm.Name = args[1]
+				case "-p":
+					mm.Path = args[1]
+				default:
+					log.Fatalf("Unknown argument: %s", args[0])
 				}
-				rules = append(rules, mm)
-			default: log.Fatalf("Unknown command: %s", commandElements[0])
+			}
+			rules = append(rules, mm)
+		default:
+			log.Fatalf("Unknown command: %s", commandElements[0])
 		}
 	}
 
@@ -140,16 +143,16 @@ func (m Mapper) SourceFieldByTarget(targetFullName string) (Mappable, bool) {
 	sourceFullName := targetFullName
 	for _, r := range m.Rules() {
 		switch rule := r.(type) {
-			case Qual:
-				if rule.Target == targetFullName {
-					lastElemStartPos := strings.LastIndexAny(targetFullName, ".")
-					pref := targetFullName[:lastElemStartPos]
-					sourceFullName = pref + "." + rule.Source
- 				}
-			case IgnoreTarget:
-				if rule.FullName == targetFullName {
-					return nil, false
-				}
+		case Qual:
+			if rule.Target == targetFullName {
+				lastElemStartPos := strings.LastIndexAny(targetFullName, ".")
+				pref := targetFullName[:lastElemStartPos]
+				sourceFullName = pref + "." + rule.Source
+			}
+		case IgnoreTarget:
+			if rule.FullName == targetFullName {
+				return nil, false
+			}
 		}
 	}
 

@@ -193,7 +193,7 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 		type fldEq struct {
 			target string
 			source func(*Statement) *Statement
-			ignore         bool
+			ignore bool
 		}
 		fields := make([]fldEq, 0)
 		addPair := func(tt string, src func(*Statement)) {
@@ -203,7 +203,7 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 				return s
 			}})
 		}
-		mapfieldloop:
+	mapfieldloop:
 		for _, ttFld := range target.Fields() {
 			rules := opts.rulesBy(ttFld.FullName())
 			for _, r := range rules {
@@ -225,12 +225,12 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 			for _, r := range rules {
 				if r, hasMethod := r.(mapp.MethodSource); hasMethod {
 					if !r.WithErr() {
-						addPair(ttFld.Name(), func(s *Statement) {s.Qual(r.Path, r.Name).Call(Id("src." + srcFld.Name()))})
+						addPair(ttFld.Name(), func(s *Statement) { s.Qual(r.Path, r.Name).Call(Id("src." + srcFld.Name())) })
 						continue mapfieldloop
 					}
 					errName := "err" + ttFld.Name() + "Mapping"
-					g.List(Id("mapped" + ttFld.Name()), Id(errName)).Op(":=").Qual(r.Path, r.Name).Call(Id("src." + srcFld.Name()))
-					addPair(ttFld.Name(), func(s *Statement) {s.Id("mapped" + ttFld.Name())})
+					g.List(Id("mapped"+ttFld.Name()), Id(errName)).Op(":=").Qual(r.Path, r.Name).Call(Id("src." + srcFld.Name()))
+					addPair(ttFld.Name(), func(s *Statement) { s.Id("mapped" + ttFld.Name()) })
 					g.If(Id(errName).Op("!=").Nil()).BlockFunc(func(g *Group) {
 						errMessage := fmt.Sprintf("'%s' -> '%s'", srcFld.Name(), ttFld.Name())
 						if opts.withErr {
@@ -245,12 +245,12 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 			}
 
 			if ttFld.Type().String() == srcFld.Type().String() {
-				addPair(ttFld.Name(), func(s *Statement) {s.Id("src."+srcFld.Name())})
+				addPair(ttFld.Name(), func(s *Statement) { s.Id("src." + srcFld.Name()) })
 				continue
 			}
 
 			if ttFld.Path() == "stdlib" && srcFld.Path() == "stdlib" && isPointer(ttFld.Type()) && !isPointer(srcFld.Type()) {
-				addPair(ttFld.Name(), func(s *Statement) {s.Id("&src."+srcFld.Name())})
+				addPair(ttFld.Name(), func(s *Statement) { s.Id("&src." + srcFld.Name()) })
 				continue
 			}
 
@@ -258,14 +258,14 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 			srcFt := srcFld.FullType()
 			truncatedTtFt, truncated := trucatePointer(ttFt)
 			if truncated && truncatedTtFt[0].String() == srcFt[0].String() {
-				addPair(ttFld.Name(), func(s *Statement) {s.Id("src."+srcFld.Name())})
+				addPair(ttFld.Name(), func(s *Statement) { s.Id("src." + srcFld.Name()) })
 				continue
 			}
 			mappedFieldName := "mapped" + ttFld.Name()
 			if truncated {
 				mappedFieldName = "&" + mappedFieldName
 			}
-			addPair(ttFld.Name(), func(s *Statement) {s.Id(mappedFieldName)})
+			addPair(ttFld.Name(), func(s *Statement) { s.Id(mappedFieldName) })
 			if ttFld.Path() == "stdlib" {
 				g.Var().Id("mapped" + ttFld.Name()).Op(truncatedTtFt[0].String())
 			} else {
@@ -273,7 +273,7 @@ func generateMapperV2(target, source mapp.Mappable, optFuncs ...optFunc) error {
 			}
 
 			mapFld("mapped"+ttFld.Name(), "src."+srcFld.Name(), truncatedTtFt, srcFt, g, append(optFuncs, WithTarget(target), WithSource(source), WithTargetField(ttFld), WithSourceField(srcFld))...)
-		} 
+		}
 
 		returns := make([]Code, 0)
 		returns = append(returns, Qual(target.Path(), target.TypeName()).BlockFunc(func(g *Group) {
@@ -408,7 +408,7 @@ func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, op
 				if cur == 0 {
 					return "i"
 				}
-				
+
 				return "i" + strconv.Itoa(cur)
 			}
 		}())
