@@ -61,7 +61,7 @@ func (f File) Mappers() []Mapper {
 			}
 			mapperErr := mapper.validate()
 			if mapperErr != nil {
-				log.Fatalf("error generate '%s' mapper: %v", mapperErr)
+				log.Fatalf("error generate '%s' mapper: %v", mapper.Name(), mapperErr)
 			}
 
 			methodList = append(methodList, mapper)
