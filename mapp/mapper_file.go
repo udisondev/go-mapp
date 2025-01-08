@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
 	"strings"
 )
 
@@ -53,11 +54,17 @@ func (f File) Mappers() []Mapper {
 				}
 			}
 
-			addMapper:
-			methodList = append(methodList, Mapper{
+		addMapper:
+			mapper := Mapper{
 				spec:    v,
 				imports: imports,
-			})
+			}
+			mapperErr := mapper.validate()
+			if mapperErr != nil {
+				log.Fatalf("error generate '%s' mapper: %v", mapperErr)
+			}
+
+			methodList = append(methodList, mapper)
 		}
 
 		return false

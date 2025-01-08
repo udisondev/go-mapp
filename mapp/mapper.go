@@ -1,6 +1,8 @@
 package mapp
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
 	"go/types"
 	"log"
@@ -48,6 +50,55 @@ func (m Mapper) Comments() []Comment {
 	}
 
 	return comments
+}
+
+func (m Mapper) validate() error {
+	params := m.Params()
+	if len(params) > 1 {
+		return errors.New("more than 1 argument")
+	}
+
+	results := m.Results()
+	if len(results) > 2 {
+		return errors.New("more than 2 returning types")
+	}
+
+	target := m.Target()
+	rules := m.Rules()
+	rulesMap := map[string][]Rule{}
+	for _, r := range rules {
+		fldRules, ok := rulesMap[r.FieldFullName()]
+		if !ok {
+			fldRules = []Rule{}
+		}
+		fldRules = append(fldRules, r)
+		rulesMap[r.FieldFullName()] = fldRules
+	}
+
+fldCheck:
+	for _, f := range target.Fields() {
+		fldRules := rulesMap[f.FullName()]
+		for _, r := range fldRules {
+			_, isIgnored := r.(IgnoreTarget)
+			if isIgnored {
+				continue fldCheck
+			}
+		}
+
+		_, exists := m.SourceFieldByTarget(f.FullName())
+		if !exists {
+			return fmt.Errorf("'%s' field has no source. Use '@ql -t=%s -s=<SourceName>' to define or @igt to ignore", f.FullName(), f.FullName())
+		}
+		for _, r := range fldRules {
+			_, hasMethodSource := r.(MethodSource)
+			if !hasMethodSource {
+				continue fldCheck
+			}
+			//TODO check in and out types
+		}
+
+	}
+	return nil
 }
 
 func (m Mapper) Rules() []Rule {
