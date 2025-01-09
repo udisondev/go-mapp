@@ -1,7 +1,6 @@
 package gen
 
 import (
-	// "fmt"
 	"fmt"
 	"go/types"
 	"log"
@@ -267,7 +266,6 @@ func generateMapper(target, source mapp.Mappable, optFuncs ...optFunc) error {
 				mappedFieldName = "&" + mappedFieldName
 			}
 			addPair(ttFld.Name(), func(s *Statement) { s.Id(mappedFieldName) })
-				fmt.Println(truncatedTtFt[0], ttFld.Path(), ttFld.Name())
 			if ttFld.Path() == "stdlib" {
 				g.Var().Id("mapped" + ttFld.Name()).Op(truncatedTtFt[0].String())
 			} else {
@@ -297,7 +295,6 @@ func generateMapper(target, source mapp.Mappable, optFuncs ...optFunc) error {
 
 	return nil
 }
-
 
 func mapFld(ttName, srcName string, ttTypes, srcTypes []types.Type, g *Group, optFns ...optFunc) {
 	if len(ttTypes) < 1 || len(srcTypes) < 1 {

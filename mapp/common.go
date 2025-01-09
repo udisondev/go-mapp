@@ -3,12 +3,35 @@ package mapp
 import (
 	"go/token"
 	"go/types"
+	"log"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
 
-func deepFieldSearch(f Mappable, fieldFullName string) (Mappable, bool) {
-	if f.FullName() == fieldFullName {
+func deepFields(f Mappable) []Mappable {
+	out := make([]Mappable, len(f.Fields()))
+	for _, fld := range f.Fields() {
+		out = append(out, fld)
+		if fflds := f.Fields(); len(fflds) > 0 {
+			out = append(out, deepFields(f)...)
+		}
+	}
+	return out
+}
+
+func deepFieldSearch(f Mappable, fieldFullName string, ignoreCase bool) (Mappable, bool) {
+	actualName := f.FullName()
+	expectedName := fieldFullName
+	if ignoreCase {
+		actualName = strings.ToLower(actualName)
+		expectedName = strings.ToLower(expectedName)
+	}
+
+	if ignoreCase {
+		log.Printf("Actual: %s expected: %s", actualName, expectedName)
+	}
+	if actualName == expectedName {
 		return f, true
 	}
 
@@ -18,7 +41,7 @@ func deepFieldSearch(f Mappable, fieldFullName string) (Mappable, bool) {
 	}
 
 	for _, ff := range fields {
-		expF, found := deepFieldSearch(ff, fieldFullName)
+		expF, found := deepFieldSearch(ff, fieldFullName, ignoreCase)
 		if found {
 			return expF, true
 		}

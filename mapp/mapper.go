@@ -85,16 +85,30 @@ fldCheck:
 			}
 		}
 
-		_, exists := m.SourceFieldByTarget(f.FullName())
+		src, exists := m.SourceFieldByTarget(f.FullName())
 		if !exists {
 			return fmt.Errorf("'%s' field has no source. Use '@ql -t=%s -s=<SourceName>' to define or @igt to ignore", f.FullName(), f.FullName())
 		}
 		for _, r := range fldRules {
-			_, hasMethodSource := r.(MethodSource)
+			mr, hasMethodSource := r.(MethodSource)
 			if !hasMethodSource {
 				continue fldCheck
 			}
-			//TODO check in and out types
+			err := mr.validate(ExpectedSignature{
+				In:  src.Type().String(),
+				Out: f.Type().String(),
+			})
+			if err != nil {
+				return fmt.Errorf("@fn rule validation error: %w", err)
+			}
+			continue fldCheck
+		}
+
+		for _, t := range f.FullType() {
+			_, isMap := t.(*types.Map)
+			if isMap {
+				return fmt.Errorf("'%s' has map type. \nPlease provide custom method which will map it by @fn -t=%s -n=<functionName> -p=<import/path if neccessory>. \nOr use @igt %s to ignore the field", f.FullName(), f.FullName(), f.FullName())
+			}
 		}
 
 	}
@@ -127,7 +141,13 @@ func (m Mapper) Rules() []Rule {
 			rules = append(rules, q)
 		case "@igt":
 			rules = append(rules, IgnoreTarget{FullName: commandElements[1]})
-		case "@mm":
+		case "@igc":
+			igc := IgnoreCase{}
+			if len(commandElements) > 1 {
+				igc.FullName = commandElements[1]
+			}
+			rules = append(rules, igc)
+		case "@fn":
 			mm := MethodSource{}
 			for _, el := range commandElements[1:] {
 				args := strings.Split(el, "=")
@@ -195,8 +215,11 @@ func (m Mapper) Target() Mappable {
 
 func (m Mapper) SourceFieldByTarget(targetFullName string) (Mappable, bool) {
 	sourceFullName := targetFullName
-	for _, r := range m.Rules() {
+	ignoreCase := false
+	for _, r := range m.RulesBy(targetFullName) {
 		switch rule := r.(type) {
+		case IgnoreCase:
+			ignoreCase = true
 		case Qual:
 			if rule.Target == targetFullName {
 				lastElemStartPos := strings.LastIndexAny(targetFullName, ".")
@@ -211,7 +234,7 @@ func (m Mapper) SourceFieldByTarget(targetFullName string) (Mappable, bool) {
 	}
 
 	for _, f := range m.Source().Fields() {
-		expF, found := deepFieldSearch(f, sourceFullName)
+		expF, found := deepFieldSearch(f, sourceFullName, ignoreCase)
 		if found {
 			return expF, found
 		}
@@ -225,6 +248,11 @@ func (m Mapper) RulesBy(fieldFullName string) []Rule {
 	for _, r := range m.Rules() {
 		if r.FieldFullName() == fieldFullName {
 			rules = append(rules, r)
+			continue
+		}
+		if igc, ok := r.(IgnoreCase); ok && igc.FieldFullName() == "" {
+			igc.FullName = fieldFullName
+			rules = append(rules, igc)
 		}
 	}
 

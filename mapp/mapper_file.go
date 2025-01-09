@@ -3,17 +3,20 @@ package mapp
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"log"
+	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
 
 type File struct {
 	spec *ast.File
 }
 
-var file *ast.File
+var modFiles []*ast.File
+var cwd string
 
 func NewMapperFile(node *ast.File) File {
 	return File{
@@ -73,15 +76,25 @@ func (f File) Mappers() []Mapper {
 	return methodList
 }
 
-func MapperFile(filePath string) File {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
-	if err != nil {
-		panic(fmt.Sprintf("failed to parse file: %v", err))
+func MapperFile(cwd, filename string) File {
+	cwd = cwd
+	cfg := &packages.Config{
+		Mode: packages.NeedTypes | packages.NeedImports | packages.NeedSyntax,
+		Fset: token.NewFileSet(),
 	}
-	file = node
-
-	return NewMapperFile(node)
+	pkgs, err := packages.Load(cfg, cwd)
+	if err != nil {
+		panic(err)
+	}
+	pkg := pkgs[0]
+	modFiles = pkg.Syntax
+	for _, f := range modFiles {
+		fullFileName := pkg.Fset.Position(f.Pos()).Filename
+		if filepath.Base(fullFileName) == filename {
+			return NewMapperFile(f)
+		}
+	}
+	panic(fmt.Sprintf("file '%s' not found", filepath.Join(cwd, filename)))
 }
 
 func (f File) EnumsMappers() []EnumMapper {

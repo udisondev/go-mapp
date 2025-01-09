@@ -31,5 +31,5 @@ func main() {
 		os.Exit(1)
 	}
 	filenameWithoutExtension, _ := strings.CutSuffix(goFile, ".go")
-	gen.Generate(mapp.MapperFile(fpath), pkgName, filepath.Join(cwd, filenameWithoutExtension+"_impl.go"))
+	gen.Generate(mapp.MapperFile(cwd, goFile), pkgName, filepath.Join(cwd, filenameWithoutExtension+"_impl.go"))
 }
